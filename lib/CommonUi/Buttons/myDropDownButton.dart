@@ -52,7 +52,7 @@ class _MyDropDownButtonState extends State<MyDropDownButton> {
             widget.onChanged(value);
           },
           hint: Text(
-            'Month',
+            '',
             style: GoogleFonts.robotoSlab(),
           ),
         ),

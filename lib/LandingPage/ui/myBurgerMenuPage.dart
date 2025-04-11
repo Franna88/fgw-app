@@ -1,11 +1,15 @@
+import 'package:farming_gods_way/Animal_Pen/animalFields.dart';
 import 'package:farming_gods_way/CommonUi/Buttons/commonButton.dart';
 import 'package:farming_gods_way/CommonUi/cornerHeaderContainer.dart';
 import 'package:farming_gods_way/Constants/colors.dart';
 import 'package:farming_gods_way/Constants/myutility.dart';
 import 'package:farming_gods_way/Crop_fields/cropFields.dart';
 import 'package:farming_gods_way/Farmers_guide/farmersGuide.dart';
+import 'package:farming_gods_way/Farmhouse_Forum/forumTopicList.dart';
 import 'package:farming_gods_way/Inventory/inventory.dart';
 import 'package:farming_gods_way/LandingPage/fgwLandingPage.dart';
+import 'package:farming_gods_way/Mentor_programme/mentorPage.dart';
+import 'package:farming_gods_way/Messages/Messages.dart';
 import 'package:farming_gods_way/Tasks/tasksHome.dart';
 import 'package:flutter/material.dart';
 
@@ -123,7 +127,13 @@ class _MyBurgerMenuPageState extends State<MyBurgerMenuPage> {
                         CommonButton(
                             customWidth: MyUtility(context).width * 0.50 - 15,
                             buttonText: 'Animal Pens',
-                            onTap: () {}),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (context) => const AnimalFields()),
+                              );
+                            }),
                       ],
                     ),
                     const SizedBox(
@@ -135,14 +145,26 @@ class _MyBurgerMenuPageState extends State<MyBurgerMenuPage> {
                         CommonButton(
                           customWidth: MyUtility(context).width * 0.50 - 15,
                           buttonText: 'Farmhouse Forum',
-                          onTap: () {},
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) => const ForumTopicList()),
+                            );
+                          },
                         ),
                         CommonButton(
                             customWidth: MyUtility(context).width * 0.50 - 15,
                             buttonText: MyUtility(context).width < 404
                                 ? 'Mentor\nProgramme'
                                 : 'Mentor Programme',
-                            onTap: () {}),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (context) => const MentorPage()),
+                              );
+                            }),
                       ],
                     ),
                     const SizedBox(
@@ -171,7 +193,14 @@ class _MyBurgerMenuPageState extends State<MyBurgerMenuPage> {
                       textColor: MyColors().black,
                       customWidth: MyUtility(context).width - 20,
                       buttonText: 'Messages',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const Messages(),
+                          ),
+                        );
+                      },
                     ),
                     const Spacer(),
                   ],

@@ -1,6 +1,7 @@
 import 'package:farming_gods_way/CommonUi/FGW_Top_Bar/circleButtons.dart';
 import 'package:farming_gods_way/Constants/myutility.dart';
 import 'package:farming_gods_way/LandingPage/ui/myBurgerMenuPage.dart';
+import 'package:farming_gods_way/Messages/Messages.dart';
 import 'package:flutter/material.dart';
 
 import '../../Constants/colors.dart';
@@ -38,7 +39,10 @@ class _FgwTopBarState extends State<FgwTopBar> {
             icon: Icons.mail_outline,
             hasNotification: true,
             onTap: () {
-              //TO DO MESSAGES
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const Messages()),
+              );
             },
           ),
           const SizedBox(
