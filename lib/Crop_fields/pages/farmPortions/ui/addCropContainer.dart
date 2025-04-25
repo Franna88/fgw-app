@@ -1,70 +1,98 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import '../../../../Constants/colors.dart';
-import '../../../../Constants/myutility.dart';
 import '../../Create_Portion/addCrop.dart';
 
-class AddCropContainer extends StatefulWidget {
-  final Function(String crop, String cropFaze, String dayCount, String rowNumber) onSave;
+class AddCropContainer extends StatelessWidget {
+  final Function(String crop, String cropFaze, String dayCount, String rowNumber, String rows) onSave;
 
   const AddCropContainer({super.key, required this.onSave});
 
   @override
-  State<AddCropContainer> createState() => _AddCropContainerState();
-}
-
-class _AddCropContainerState extends State<AddCropContainer> {
-  @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () async {
-        // Navigate to AddCrop page and wait for the user input
-        final result = await Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const AddCrop()),
-        );
+    final myColors = MyColors();
+    
+    return Card(
+      elevation: 1,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: InkWell(
+        onTap: () async {
+          // Navigate to AddCrop page and wait for the user input
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const AddCrop()),
+          );
 
-        if (result != null) {
-          // Pass the result back to the parent widget (PortionItem)
-          widget.onSave(result['crop'], result['cropFaze'], result['dayCount'], result['rowNumber']);
-        }
-      },
-      child: Container(
-        height: 70,
-        width: MyUtility(context).width * 0.90 - 79,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 45,
-              height: 70,
-              decoration: BoxDecoration(
-                color: MyColors().black,
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(8),
-                  bottomLeft: Radius.circular(8),
+          if (result != null) {
+            // Pass the result back to the parent widget (PortionItem)
+            onSave(
+              result['crop'] ?? '', 
+              result['cropFaze'] ?? '', 
+              result['dayCount'] ?? '', 
+              result['rowNumber'] ?? '',
+              result['rows'] ?? '',
+            );
+            
+            // For debugging - print out the values to ensure rows is being passed
+            print('Saved crop with rows: ${result['rows']}');
+          }
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          width: 150,
+          height: 170, // Match the height of CropPortionItem
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                height: 48,
+                width: 48,
+                decoration: BoxDecoration(
+                  color: myColors.lightGreen.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: myColors.forestGreen.withOpacity(0.2),
+                    width: 1,
+                  ),
+                ),
+                child: Center(
+                  child: FaIcon(
+                    FontAwesomeIcons.plus,
+                    size: 20,
+                    color: myColors.forestGreen,
+                  ),
                 ),
               ),
-              child: Center(
-                child: Icon(
-                  Icons.add,
-                  color: Colors.white,
+              const SizedBox(height: 12),
+              Text(
+                'Add Crop',
+                style: GoogleFonts.robotoSlab(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: myColors.forestGreen,
                 ),
               ),
-            ),
-            const Spacer(),
-            Text(
-              'Add Crop',
-              style: GoogleFonts.roboto(fontSize: 20, fontWeight: FontWeight.w500),
-            ),
-            const Spacer(),
-          ],
+              const SizedBox(height: 8),
+              Text(
+                'Tap to add a new crop to this portion',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.roboto(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-    );
+    ).animate().fadeIn(duration: 300.ms);
   }
 }

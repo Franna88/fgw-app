@@ -72,12 +72,17 @@ class _LabeledTextFieldState extends State<LabeledTextField> {
                     hintText: widget.hintText,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide.none, // No border by default
+                      borderSide: BorderSide(color: Colors.grey[300]!), // Light grey border
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: Colors.grey[300]!), // Light grey border
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                       borderSide: BorderSide(
-                        color: Colors.transparent, // Transparent focus border
+                        color: MyColors().forestGreen, // Green border when focused
+                        width: 1.5,
                       ),
                     ),
                     contentPadding: const EdgeInsets.symmetric(

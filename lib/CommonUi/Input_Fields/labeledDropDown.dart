@@ -66,6 +66,7 @@ class _LabeledDropdownState extends State<LabeledDropdown> {
                 decoration: BoxDecoration(
                   color: MyColors().offWhite,
                   borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey[300]!),
                 ),
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: DropdownButtonHideUnderline(

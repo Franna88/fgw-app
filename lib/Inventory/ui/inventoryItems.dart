@@ -9,60 +9,119 @@ class InventoryItems extends StatefulWidget {
   final String image;
   final String name;
   final int count;
+  final String unit;
+  final String? notes;
   final ValueChanged<int> onChanged;
-  const InventoryItems(
-      {super.key,
-      required this.image,
-      required this.name,
-      required this.count,
-      required this.onChanged});
+  
+  const InventoryItems({
+    super.key,
+    required this.image,
+    required this.name,
+    required this.count,
+    required this.onChanged,
+    required this.unit,
+    this.notes,
+  });
 
   @override
   State<InventoryItems> createState() => _InventoryItemsState();
 }
 
 class _InventoryItemsState extends State<InventoryItems> {
+  bool _showNotes = false;
+
   @override
   Widget build(BuildContext context) {
+    final myColors = MyColors();
+    
     return Padding(
-      padding: const EdgeInsets.only(bottom: 15),
+      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 6),
       child: Container(
-        height: 120,
-        width: MyUtility(context).width,
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          color: MyColors().offWhite,
-          borderRadius: BorderRadius.circular(10),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            )
+          ],
+          border: Border.all(color: Colors.grey[200]!),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.center,
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                height: 100,
-                width: 100,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  image: DecorationImage(
-                      image: AssetImage(widget.image), fit: BoxFit.cover),
-                ),
-              ),
-              const SizedBox(
-                width: 10,
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    widget.name,
-                    style: GoogleFonts.roboto(
-                        fontSize: 20, fontWeight: FontWeight.w600),
+                  Expanded(
+                    child: Text(
+                      widget.name,
+                      style: GoogleFonts.roboto(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: myColors.black,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                  CounterWidget(count: widget.count, onChanged: widget.onChanged)
+                  Container(
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: myColors.lightGreen.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          constraints: const BoxConstraints(),
+                          padding: const EdgeInsets.all(4),
+                          icon: const Icon(
+                            Icons.remove,
+                            size: 18,
+                          ),
+                          onPressed: () {
+                            if (widget.count > 0) {
+                              widget.onChanged(widget.count - 1);
+                            }
+                          },
+                        ),
+                        Text(
+                          widget.count.toString(),
+                          style: GoogleFonts.roboto(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        IconButton(
+                          constraints: const BoxConstraints(),
+                          padding: const EdgeInsets.all(4),
+                          icon: const Icon(
+                            Icons.add,
+                            size: 18,
+                          ),
+                          onPressed: () {
+                            widget.onChanged(widget.count + 1);
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
-              )
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '• ${widget.unit}',
+                style: GoogleFonts.roboto(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                ),
+              ),
             ],
           ),
         ),

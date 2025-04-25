@@ -1,6 +1,3 @@
-
-
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -72,6 +69,7 @@ class _LabeledDatePickerState extends State<LabeledDatePicker> {
                   decoration: BoxDecoration(
                     color: MyColors().offWhite,
                     borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey[300]!),
                   ),
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                   child: Row(

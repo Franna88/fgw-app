@@ -1,94 +1,534 @@
-import 'package:farming_gods_way/CommonUi/Buttons/commonButton.dart';
-
+import 'package:farming_gods_way/CommonUi/FGW_Top_Bar/fgwTopBar.dart';
 import 'package:farming_gods_way/Crop_fields/pages/farmPortions/ui/portionItem.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:google_fonts/google_fonts.dart';
 
-import '../../../CommonUi/cornerHeaderContainer.dart';
 import '../../../Constants/colors.dart';
-import '../../../Constants/myutility.dart';
 import '../Create_Portion/newPortion.dart';
+import '../Full_Portion_view/fullPortionView.dart';
 
 class FarmPortionsPage extends StatefulWidget {
   const FarmPortionsPage({super.key});
 
   @override
-  State createState() => _FarmPortionsPageState();
+  State<FarmPortionsPage> createState() => _FarmPortionsPageState();
 }
 
-class _FarmPortionsPageState extends State {
-  final List<PortionItem> _portions = [];
-
+class _FarmPortionsPageState extends State<FarmPortionsPage> {
+  // Sample initial data for demo purposes
+  final List<Map<String, dynamic>> _portions = [
+    {
+      'portionName': 'Portion A',
+      'rowLength': '5',
+      'portionType': 'Root Type',
+      'crop': 'Carrot',
+      'completedTasks': 2,
+      'totalTasks': 5,
+    },
+    {
+      'portionName': 'Portion B',
+      'rowLength': '3',
+      'portionType': 'Leaf Type',
+      'crop': 'Spinach',
+      'completedTasks': 1,
+      'totalTasks': 4,
+    },
+  ];
+  
+  bool _isLoading = false;
+  String _searchQuery = '';
+  
   void _addPortion(String portionName, String rowLength, String portionType) {
     setState(() {
-      _portions.add(PortionItem(
-        portionName: portionName,
-        //rowLength: rowLength,
-        portionType: portionType,
-      ));
+      _portions.add({
+        'portionName': portionName,
+        'rowLength': rowLength,
+        'portionType': portionType,
+        'crop': '',
+        'completedTasks': 0,
+        'totalTasks': 0,
+      });
     });
+  }
+
+  void _navigateToCreatePortion() async {
+    setState(() {
+      _isLoading = true;
+    });
+    
+    final newPortion = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const NewPortion()),
+    );
+    
+    setState(() {
+      _isLoading = false;
+    });
+    
+    if (newPortion != null && mounted) {
+      _addPortion(
+        newPortion['portionName'],
+        newPortion['rowLength'],
+        newPortion['portionType'],
+      );
+      
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${newPortion['portionName']} added successfully'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: MyColors().forestGreen,
+        ),
+      );
+    }
+  }
+  
+  void _navigateToPortionView(Map<String, dynamic> portion) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const FullPortionView()),
+    );
+  }
+  
+  void _deletePortion(int index) {
+    final portionName = _portions[index]['portionName'];
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Delete Portion',
+          style: GoogleFonts.robotoSlab(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Text(
+          'Are you sure you want to delete "$portionName"? This action cannot be undone.',
+          style: GoogleFonts.roboto(),
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.roboto(
+                color: Colors.grey[700],
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                _portions.removeAt(index);
+              });
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('$portionName deleted'),
+                  behavior: SnackBarBehavior.floating,
+                  backgroundColor: Colors.red,
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: Text(
+              'Delete',
+              style: GoogleFonts.roboto(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  List<Map<String, dynamic>> get filteredPortions {
+    if (_searchQuery.isEmpty) {
+      return _portions;
+    }
+    
+    return _portions.where((portion) => 
+      portion['portionName'].toLowerCase().contains(_searchQuery.toLowerCase()) ||
+      portion['portionType'].toLowerCase().contains(_searchQuery.toLowerCase()) ||
+      portion['crop'].toString().toLowerCase().contains(_searchQuery.toLowerCase())
+    ).toList();
   }
 
   @override
   Widget build(BuildContext context) {
+    final myColors = MyColors();
+    
     return Scaffold(
-      backgroundColor: MyColors().offWhite,
-      body: SizedBox(
-        height: MyUtility(context).height,
-        width: MyUtility(context).width,
+      backgroundColor: myColors.forestGreen,
+      body: SafeArea(
         child: Column(
           children: [
-            SizedBox(height: MyUtility(context).height * 0.05),
-            Container(
-              height: MyUtility(context).height * 0.95,
-              width: MyUtility(context).width,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [MyColors().forestGreen, MyColors().lightGreen],
-                ),
-                borderRadius:
-                    const BorderRadius.only(topLeft: Radius.circular(60)),
-              ),
-              child: Column(
-                children: [
-                  const SizedBox(height: 15),
-                  const CornerHeaderContainer(
-                      header: 'Portions', hasBackArrow: true),
-                  const SizedBox(height: 20),
-                  Expanded(
-                    child: SizedBox(
-                      width: MyUtility(context).width * 0.90,
-                      child: ListView.builder(
-                        itemCount: _portions.length,
-                        itemBuilder: (context, index) => _portions[index],
-                      ),
+            const FgwTopBar(title: 'Field Portions'),
+            
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(top: 16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(24),
+                    topRight: Radius.circular(24),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, -5),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  CommonButton(
-                    textColor: MyColors().black,
-                    buttonColor: MyColors().yellow,
-                    customWidth: MyUtility(context).width * 0.90,
-                    buttonText: 'Add Portion',
-                    onTap: () async {
-                      final newPortion = await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => const NewPortion()),
-                      );
-                      if (newPortion != null) {
-                        _addPortion(newPortion['portionName'],
-                            newPortion['rowLength'], newPortion['portionType']);
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                ],
+                  ],
+                ),
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : Column(
+                        children: [
+                          // Search and stats
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+                            child: Column(
+                              children: [
+                                // Search field
+                                TextField(
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _searchQuery = value;
+                                    });
+                                  },
+                                  decoration: InputDecoration(
+                                    hintText: 'Search portions...',
+                                    prefixIcon: const Icon(Icons.search),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(color: Colors.grey[300]!),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(color: Colors.grey[300]!),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(color: myColors.forestGreen),
+                                    ),
+                                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                                    filled: true,
+                                    fillColor: Colors.grey[50],
+                                  ),
+                                ),
+                                
+                                const SizedBox(height: 16),
+                                
+                                // Stats cards
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: _buildStatCard(
+                                        '${_portions.length}',
+                                        'Total Portions',
+                                        myColors.forestGreen,
+                                        Icons.grid_view_rounded,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: _buildStatCard(
+                                        _portions.isEmpty ? '0' : 
+                                        '${_portions.fold<int>(0, (sum, portion) => sum + (portion['completedTasks'] as int))}',
+                                        'Completed Tasks',
+                                        myColors.green,
+                                        Icons.check_circle_outline,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          
+                          // Info card
+                          Container(
+                            width: double.infinity,
+                            margin: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: myColors.lightGreen.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: myColors.lightGreen.withOpacity(0.3),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    FaIcon(
+                                      FontAwesomeIcons.objectGroup,
+                                      color: myColors.forestGreen,
+                                      size: 16,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Field Portions',
+                                      style: GoogleFonts.robotoSlab(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: myColors.forestGreen,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                const Divider(),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Portions help you organize different areas of your field. Add portions to start tracking crops.',
+                                  style: TextStyle(
+                                    color: Colors.grey[700],
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          
+                          // Portions list
+                          Expanded(
+                            child: filteredPortions.isEmpty
+                                ? _buildEmptyState()
+                                : ListView.builder(
+                                    padding: const EdgeInsets.all(20),
+                                    itemCount: filteredPortions.length,
+                                    itemBuilder: (context, index) {
+                                      final portion = filteredPortions[index];
+                                      return Dismissible(
+                                        key: Key(portion['portionName']!),
+                                        direction: DismissDirection.endToStart,
+                                        background: Container(
+                                          alignment: Alignment.centerRight,
+                                          padding: const EdgeInsets.only(right: 20),
+                                          decoration: BoxDecoration(
+                                            color: Colors.red[400],
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: const Icon(
+                                            Icons.delete_outline,
+                                            color: Colors.white,
+                                            size: 28,
+                                          ),
+                                        ),
+                                        onDismissed: (direction) {
+                                          _deletePortion(index);
+                                        },
+                                        confirmDismiss: (direction) async {
+                                          bool delete = false;
+                                          await showDialog(
+                                            context: context,
+                                            builder: (context) => AlertDialog(
+                                              title: Text(
+                                                'Delete Portion',
+                                                style: GoogleFonts.robotoSlab(
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              content: Text(
+                                                'Are you sure you want to delete "${portion['portionName']}"? This action cannot be undone.',
+                                                style: GoogleFonts.roboto(),
+                                              ),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(16),
+                                              ),
+                                              actions: [
+                                                TextButton(
+                                                  onPressed: () => Navigator.pop(context),
+                                                  child: Text(
+                                                    'Cancel',
+                                                    style: GoogleFonts.roboto(
+                                                      color: Colors.grey[700],
+                                                    ),
+                                                  ),
+                                                ),
+                                                ElevatedButton(
+                                                  onPressed: () {
+                                                    delete = true;
+                                                    Navigator.pop(context);
+                                                  },
+                                                  style: ElevatedButton.styleFrom(
+                                                    backgroundColor: Colors.red,
+                                                    foregroundColor: Colors.white,
+                                                    shape: RoundedRectangleBorder(
+                                                      borderRadius: BorderRadius.circular(8),
+                                                    ),
+                                                  ),
+                                                  child: Text(
+                                                    'Delete',
+                                                    style: GoogleFonts.roboto(),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                          return delete;
+                                        },
+                                        child: GestureDetector(
+                                          onTap: () => _navigateToPortionView(portion),
+                                          child: Padding(
+                                            padding: const EdgeInsets.only(bottom: 16),
+                                            child: PortionItem(
+                                              portionName: portion['portionName'],
+                                              portionType: portion['portionType'],
+                                            ),
+                                          ).animate().fadeIn(
+                                                duration: 400.ms,
+                                                delay: 50.ms * index,
+                                              ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                          ),
+                          
+                          // Add button at bottom
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.05),
+                                  offset: const Offset(0, -2),
+                                  blurRadius: 5,
+                                ),
+                              ],
+                            ),
+                            child: SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                onPressed: _navigateToCreatePortion,
+                                icon: const Icon(Icons.add),
+                                label: const Text('Add New Portion'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: myColors.forestGreen,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+  
+  Widget _buildStatCard(String value, String label, Color color, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: color.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            icon,
+            color: color,
+            size: 18,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: GoogleFonts.robotoSlab(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          FaIcon(
+            FontAwesomeIcons.objectGroup,
+            size: 64,
+            color: Colors.grey[300],
+          ).animate().scale(duration: 400.ms, curve: Curves.easeOutBack),
+          const SizedBox(height: 24),
+          Text(
+            _searchQuery.isEmpty ? 'No Portions Yet' : 'No Matching Results',
+            style: GoogleFonts.robotoSlab(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[700],
+            ),
+          ).animate().fadeIn(duration: 400.ms),
+          const SizedBox(height: 12),
+          Text(
+            _searchQuery.isEmpty 
+                ? 'Create portions to organize your field'
+                : 'Try a different search term',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey[600],
+            ),
+          ).animate().fadeIn(duration: 400.ms, delay: 100.ms),
+          const SizedBox(height: 32),
+          if (_searchQuery.isEmpty)
+            ElevatedButton.icon(
+              onPressed: _navigateToCreatePortion,
+              icon: const Icon(Icons.add),
+              label: const Text('Add First Portion'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: MyColors().forestGreen,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ).animate().fadeIn(duration: 400.ms, delay: 200.ms),
+        ],
       ),
     );
   }

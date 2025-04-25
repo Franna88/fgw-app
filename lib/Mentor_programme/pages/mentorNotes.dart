@@ -1,6 +1,7 @@
 import 'package:farming_gods_way/Mentor_programme/pages/newMentorNote.dart';
 import 'package:farming_gods_way/Mentor_programme/ui/mentorNoteItem.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 import '../../CommonUi/Buttons/commonButton.dart';
 import '../../CommonUi/cornerHeaderContainer.dart';
@@ -15,10 +16,26 @@ class MentorNotes extends StatefulWidget {
 }
 
 class _MentorNotesState extends State<MentorNotes> {
+  // Sample data - in a real app, this would come from a database or service
+  final List<Map<String, String>> _notes = [
+    {
+      'title': 'Crop Rotation Plan',
+      'dateTime': '2024-06-12 14:30:00',
+      'body': 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, .'
+    },
+    {
+      'title': 'Soil Health Assessment',
+      'dateTime': '2024-06-10 09:15:00',
+      'body': 'Checked soil pH levels in the north field. Results show slightly acidic conditions (pH 6.2). Recommended adding lime to bring pH closer to neutral.'
+    }
+  ];
+
   @override
   Widget build(BuildContext context) {
+    final myColors = MyColors();
+    
     return Scaffold(
-      backgroundColor: MyColors().offWhite,
+      backgroundColor: myColors.offWhite,
       body: SizedBox(
         height: MyUtility(context).height,
         width: MyUtility(context).width,
@@ -32,9 +49,9 @@ class _MentorNotesState extends State<MentorNotes> {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [MyColors().forestGreen, MyColors().lightGreen],
+                  colors: [myColors.forestGreen, myColors.lightGreen],
                 ),
-                borderRadius: BorderRadius.only(
+                borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(60),
                 ),
               ),
@@ -47,8 +64,8 @@ class _MentorNotesState extends State<MentorNotes> {
                         header: 'Mentor Notes', hasBackArrow: true),
                     const SizedBox(height: 15),
                     CommonButton(
-                        buttonColor: MyColors().yellow,
-                        textColor: MyColors().black,
+                        buttonColor: myColors.yellow,
+                        textColor: myColors.black,
                         customWidth: MyUtility(context).width * 0.93,
                         buttonText: 'Create New Note',
                         onTap: () {
@@ -63,20 +80,32 @@ class _MentorNotesState extends State<MentorNotes> {
                       height: MyUtility(context).height - 196,
                       width: MyUtility(context).width * 0.93,
                       decoration: BoxDecoration(
-                        color: MyColors().offWhite,
-                        borderRadius: BorderRadius.only(
+                        color: myColors.offWhite,
+                        borderRadius: const BorderRadius.only(
                           topLeft: Radius.circular(10),
                           topRight: Radius.circular(10),
                         ),
                       ),
-                      //List of Animals
-                      child: MentorNoteItem(
-                        date: '2024/06/12',
-                        note:
-                            'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, .',
-                        refImage: 'images/potatoes.png',
-                        header: 'header',
-                      ),
+                      child: _notes.isEmpty 
+                        ? Center(
+                            child: Text(
+                              'No notes yet. Create your first note!',
+                              style: TextStyle(color: myColors.black),
+                            ),
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.all(12),
+                            itemCount: _notes.length,
+                            itemBuilder: (context, index) {
+                              return MentorNoteItem(
+                                title: _notes[index]['title'] ?? '',
+                                dateTime: _notes[index]['dateTime'] ?? '',
+                                body: _notes[index]['body'] ?? '',
+                                showActions: true,
+                              ).animate().fadeIn(duration: 400.ms, delay: (index * 100).ms)
+                                .slideY(begin: 0.2, end: 0, curve: Curves.easeOutQuad);
+                            },
+                          ),
                     ),
                   ],
                 ),
