@@ -11,8 +11,9 @@ class InventoryItems extends StatefulWidget {
   final int count;
   final String unit;
   final String? notes;
+  final double? unitCost;
   final ValueChanged<int> onChanged;
-  
+
   const InventoryItems({
     super.key,
     required this.image,
@@ -21,6 +22,7 @@ class InventoryItems extends StatefulWidget {
     required this.onChanged,
     required this.unit,
     this.notes,
+    this.unitCost,
   });
 
   @override
@@ -33,7 +35,7 @@ class _InventoryItemsState extends State<InventoryItems> {
   @override
   Widget build(BuildContext context) {
     final myColors = MyColors();
-    
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 6),
       child: Container(
@@ -115,12 +117,19 @@ class _InventoryItemsState extends State<InventoryItems> {
                 ],
               ),
               const SizedBox(height: 4),
-              Text(
-                '• ${widget.unit}',
-                style: GoogleFonts.roboto(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                ),
+              Row(
+                children: [
+                  if (widget.unitCost != null) ...[
+                    const SizedBox(width: 8),
+                    Text(
+                      '• R${widget.unitCost!.toStringAsFixed(2)}/${widget.unit}',
+                      style: GoogleFonts.roboto(
+                        fontSize: 14,
+                        color: myColors.forestGreen,
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ],
           ),

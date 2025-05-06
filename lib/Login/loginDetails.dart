@@ -8,6 +8,10 @@ import 'package:farming_gods_way/Sign_Ups/Farmer_Sign_Up/ui/signUpStructure.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/user_provider.dart';
+import '../services/firebase_service.dart';
 
 class LoginDetails extends StatefulWidget {
   const LoginDetails({super.key});
@@ -21,17 +25,77 @@ class _LoginDetailsState extends State<LoginDetails> {
   final TextEditingController password = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   bool _obscureText = true;
+  bool _isLoading = false;
+  String? _errorMessage;
 
-  void _validateAndLogin() {
+  @override
+  void dispose() {
+    email.dispose();
+    password.dispose();
+    super.dispose();
+  }
+
+  Future<void> _validateAndLogin() async {
+    // Hide keyboard
+    FocusScope.of(context).unfocus();
+
     if (_formKey.currentState!.validate()) {
-      // If validation passes, proceed with login logic
-      print("Login Successful with Email: ${email.text}");
-      
-      // Navigate to landing page
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const FgwLandingPage()),
-      );
+      try {
+        setState(() {
+          _isLoading = true;
+          _errorMessage = null;
+        });
+
+        // Get user provider
+        final userProvider = Provider.of<UserProvider>(context, listen: false);
+
+        // Attempt to sign in
+        final success = await userProvider.signInWithEmailAndPassword(
+            email.text.trim(), password.text);
+
+        if (success) {
+          // Fetch user type from Firestore
+          final userId = FirebaseService.currentUser?.uid;
+          if (userId != null) {
+            final userDoc = await FirebaseService.firestore
+                .collection('users')
+                .doc(userId)
+                .get();
+
+            if (userDoc.exists) {
+              final userData = userDoc.data() as Map<String, dynamic>;
+              final userType = userData['userType'] as String?;
+
+              // Navigate based on user type
+              if (mounted) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => const FgwLandingPage()),
+                );
+              }
+            } else {
+              setState(() {
+                _isLoading = false;
+                _errorMessage =
+                    "User profile not found. Please contact support.";
+              });
+            }
+          }
+        } else {
+          // Handle login failure (error will be in userProvider.error)
+          setState(() {
+            _isLoading = false;
+            _errorMessage =
+                userProvider.error ?? "Login failed. Please try again.";
+          });
+        }
+      } catch (e) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = e.toString();
+        });
+      }
     }
   }
 
@@ -55,17 +119,19 @@ class _LoginDetailsState extends State<LoginDetails> {
                   ),
                 ),
               ),
-              
+
               SafeArea(
                 child: Column(
                   children: [
                     // Back button and header
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 15),
                       child: Row(
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.arrow_back, color: Colors.white),
+                            icon: const Icon(Icons.arrow_back,
+                                color: Colors.white),
                             onPressed: () => Navigator.pop(context),
                           ).animate().fadeIn(duration: 300.ms),
                           const SizedBox(width: 10),
@@ -76,13 +142,16 @@ class _LoginDetailsState extends State<LoginDetails> {
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
                             ),
-                          ).animate().fadeIn(duration: 500.ms).slideX(begin: 0.2, end: 0),
+                          )
+                              .animate()
+                              .fadeIn(duration: 500.ms)
+                              .slideX(begin: 0.2, end: 0),
                         ],
                       ),
                     ),
-                    
+
                     const SizedBox(height: 30),
-                    
+
                     // Main content area with white background
                     Expanded(
                       child: Container(
@@ -106,7 +175,7 @@ class _LoginDetailsState extends State<LoginDetails> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const SizedBox(height: 20),
-                            
+
                             // Welcome message
                             Text(
                               "Welcome Back",
@@ -116,9 +185,9 @@ class _LoginDetailsState extends State<LoginDetails> {
                                 color: MyColors().forestGreen,
                               ),
                             ).animate().fadeIn(duration: 600.ms),
-                            
+
                             const SizedBox(height: 10),
-                            
+
                             Text(
                               "Please enter your credentials to continue",
                               style: GoogleFonts.roboto(
@@ -126,9 +195,51 @@ class _LoginDetailsState extends State<LoginDetails> {
                                 color: Colors.grey[600],
                               ),
                             ).animate().fadeIn(duration: 700.ms),
-                            
+
                             const SizedBox(height: 30),
-                            
+
+                            // Error message (if any)
+                            if (_errorMessage != null)
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.shade50,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border:
+                                      Border.all(color: Colors.red.shade200),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.error_outline,
+                                        color: Colors.red.shade700, size: 20),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        _errorMessage!,
+                                        style: GoogleFonts.roboto(
+                                          fontSize: 14,
+                                          color: Colors.red.shade700,
+                                        ),
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: Icon(Icons.close,
+                                          color: Colors.red.shade700, size: 16),
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                      onPressed: () {
+                                        setState(() {
+                                          _errorMessage = null;
+                                        });
+                                      },
+                                    )
+                                  ],
+                                ),
+                              ),
+
+                            if (_errorMessage != null)
+                              const SizedBox(height: 20),
+
                             // Form
                             Form(
                               key: _formKey,
@@ -144,14 +255,15 @@ class _LoginDetailsState extends State<LoginDetails> {
                                       color: Colors.black87,
                                     ),
                                   ).animate().fadeIn(duration: 800.ms),
-                                  
+
                                   const SizedBox(height: 8),
-                                  
+
                                   Container(
                                     decoration: BoxDecoration(
                                       color: Colors.grey[100],
                                       borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: Colors.grey.shade300),
+                                      border: Border.all(
+                                          color: Colors.grey.shade300),
                                     ),
                                     child: TextFormField(
                                       controller: email,
@@ -159,25 +271,33 @@ class _LoginDetailsState extends State<LoginDetails> {
                                       decoration: InputDecoration(
                                         border: InputBorder.none,
                                         hintText: 'Enter your email',
-                                        hintStyle: TextStyle(color: Colors.grey[400]),
-                                        contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 16),
-                                        prefixIcon: Icon(Icons.email_outlined, color: MyColors().forestGreen),
+                                        hintStyle:
+                                            TextStyle(color: Colors.grey[400]),
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                                horizontal: 15, vertical: 16),
+                                        prefixIcon: Icon(Icons.email_outlined,
+                                            color: MyColors().forestGreen),
                                       ),
                                       validator: (value) {
                                         if (value == null || value.isEmpty) {
                                           return 'Email cannot be empty';
                                         }
-                                        if (!RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+                                        if (!RegExp(
+                                                r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
                                             .hasMatch(value)) {
                                           return 'Enter a valid email address';
                                         }
                                         return null;
                                       },
                                     ),
-                                  ).animate().fadeIn(duration: 800.ms).slideY(begin: 0.2, end: 0),
-                                  
+                                  )
+                                      .animate()
+                                      .fadeIn(duration: 800.ms)
+                                      .slideY(begin: 0.2, end: 0),
+
                                   const SizedBox(height: 20),
-                                  
+
                                   // Password field
                                   Text(
                                     "Password",
@@ -187,14 +307,15 @@ class _LoginDetailsState extends State<LoginDetails> {
                                       color: Colors.black87,
                                     ),
                                   ).animate().fadeIn(duration: 900.ms),
-                                  
+
                                   const SizedBox(height: 8),
-                                  
+
                                   Container(
                                     decoration: BoxDecoration(
                                       color: Colors.grey[100],
                                       borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: Colors.grey.shade300),
+                                      border: Border.all(
+                                          color: Colors.grey.shade300),
                                     ),
                                     child: TextFormField(
                                       controller: password,
@@ -202,12 +323,18 @@ class _LoginDetailsState extends State<LoginDetails> {
                                       decoration: InputDecoration(
                                         border: InputBorder.none,
                                         hintText: 'Enter your password',
-                                        hintStyle: TextStyle(color: Colors.grey[400]),
-                                        contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 16),
-                                        prefixIcon: Icon(Icons.lock_outline, color: MyColors().forestGreen),
+                                        hintStyle:
+                                            TextStyle(color: Colors.grey[400]),
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                                horizontal: 15, vertical: 16),
+                                        prefixIcon: Icon(Icons.lock_outline,
+                                            color: MyColors().forestGreen),
                                         suffixIcon: IconButton(
                                           icon: Icon(
-                                            _obscureText ? Icons.visibility_off : Icons.visibility,
+                                            _obscureText
+                                                ? Icons.visibility_off
+                                                : Icons.visibility,
                                             color: Colors.grey[600],
                                           ),
                                           onPressed: () {
@@ -227,13 +354,16 @@ class _LoginDetailsState extends State<LoginDetails> {
                                         return null;
                                       },
                                     ),
-                                  ).animate().fadeIn(duration: 900.ms).slideY(begin: 0.2, end: 0),
+                                  )
+                                      .animate()
+                                      .fadeIn(duration: 900.ms)
+                                      .slideY(begin: 0.2, end: 0),
                                 ],
                               ),
                             ),
-                            
+
                             const SizedBox(height: 15),
-                            
+
                             // Forgot password
                             Align(
                               alignment: Alignment.centerRight,
@@ -254,26 +384,33 @@ class _LoginDetailsState extends State<LoginDetails> {
                                 ),
                               ),
                             ).animate().fadeIn(duration: 1000.ms),
-                            
+
                             const Spacer(),
-                            
+
                             // Login button
                             Center(
-                              child: CommonButton(
-                                customWidth: 160,
-                                buttonText: 'Login',
-                                onTap: _validateAndLogin,
-                              ),
+                              child: _isLoading
+                                  ? CircularProgressIndicator(
+                                      color: MyColors().forestGreen,
+                                    )
+                                  : CommonButton(
+                                      customWidth: 160,
+                                      buttonText: 'Login',
+                                      onTap: _validateAndLogin,
+                                    ),
                             ).animate().fadeIn(duration: 1100.ms).scale(
-                              begin: const Offset(0.9, 0.9),
-                              end: const Offset(1, 1),
-                              duration: 500.ms,
-                            ),
-                            
+                                  begin: const Offset(0.9, 0.9),
+                                  end: const Offset(1, 1),
+                                  duration: 500.ms,
+                                ),
+
                             const SizedBox(height: 20),
                           ],
                         ),
-                      ).animate().fadeIn(duration: 500.ms).slideY(begin: 0.05, end: 0),
+                      )
+                          .animate()
+                          .fadeIn(duration: 500.ms)
+                          .slideY(begin: 0.05, end: 0),
                     ),
                   ],
                 ),

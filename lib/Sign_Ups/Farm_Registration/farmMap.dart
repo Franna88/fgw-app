@@ -4,6 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:provider/provider.dart';
+import 'package:farming_gods_way/services/user_provider.dart';
+import 'package:farming_gods_way/services/firebase_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../CommonUi/Buttons/commonButton.dart';
 import '../../Constants/myutility.dart';
@@ -16,6 +21,95 @@ class FarmMap extends StatefulWidget {
 }
 
 class _FarmMapState extends State<FarmMap> {
+  double? latitude = -25.7461;
+  double? longitude = 28.1881;
+  bool isLoading = false;
+  GoogleMapController? _mapController;
+  Marker? _farmMarker;
+  CameraPosition get _initialCameraPosition =>
+      CameraPosition(target: LatLng(latitude!, longitude!), zoom: 14);
+
+  void _onMapCreated(GoogleMapController controller) {
+    _mapController = controller;
+  }
+
+  void _onMapTap(LatLng position) {
+    setState(() {
+      latitude = position.latitude;
+      longitude = position.longitude;
+      _farmMarker = Marker(
+        markerId: MarkerId('farm_marker'),
+        position: position,
+      );
+    });
+  }
+
+  void _zoomIn() {
+    _mapController?.animateCamera(CameraUpdate.zoomIn());
+  }
+
+  void _zoomOut() {
+    _mapController?.animateCamera(CameraUpdate.zoomOut());
+  }
+
+  void _confirmLocation() async {
+    if (latitude != null && longitude != null) {
+      try {
+        setState(() {
+          isLoading = true;
+        });
+
+        // Save coordinates to user provider for later use
+        final userProvider = Provider.of<UserProvider>(context, listen: false);
+        final farmData = userProvider.registrationData;
+
+        // Update the registration data with coordinates
+        farmData['farmLocation'] = {
+          'latitude': latitude,
+          'longitude': longitude,
+        };
+
+        userProvider.storeRegistrationData(farmData);
+
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Location saved: ($latitude, $longitude)'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 1),
+          ),
+        );
+
+        // Navigate to the next page
+        setState(() {
+          isLoading = false;
+        });
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const FarmIrrigation()),
+        );
+      } catch (e) {
+        setState(() {
+          isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error saving location: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please select a location on the map'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -33,15 +127,16 @@ class _FarmMapState extends State<FarmMap> {
               ),
             ),
           ),
-          
-          // Main content
           SafeArea(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Header section
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 15,
+                  ),
                   child: Row(
                     children: [
                       IconButton(
@@ -75,10 +170,12 @@ class _FarmMapState extends State<FarmMap> {
                     ],
                   ),
                 ),
-                
                 // Progress indicator
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 30,
+                    vertical: 10,
+                  ),
                   child: Container(
                     height: 4,
                     decoration: BoxDecoration(
@@ -109,182 +206,113 @@ class _FarmMapState extends State<FarmMap> {
                     ),
                   ).animate().fadeIn(delay: 300.ms),
                 ),
-                
                 const SizedBox(height: 10),
-                
-                // Form content
-                Expanded(
+                // Coordinates display
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 25),
                   child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 30),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 8,
+                      horizontal: 16,
+                    ),
                     decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(30),
-                        topRight: Radius.circular(30),
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.grey[300]!),
+                    ),
+                    child: Text(
+                      'Coordinates: ${latitude?.toStringAsFixed(6)}, ${longitude?.toStringAsFixed(6)}',
+                      style: GoogleFonts.roboto(
+                        fontSize: 14,
+                        color: Colors.grey[700],
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 10,
-                          offset: const Offset(0, -3),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                // Google Map
+                Expanded(
+                  child: Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: GoogleMap(
+                          initialCameraPosition: _initialCameraPosition,
+                          onMapCreated: _onMapCreated,
+                          markers:
+                              _farmMarker != null
+                                  ? {_farmMarker!}
+                                  : {
+                                    Marker(
+                                      markerId: const MarkerId('farm_marker'),
+                                      position: LatLng(latitude!, longitude!),
+                                    ),
+                                  },
+                          onTap: _onMapTap,
+                          zoomControlsEnabled:
+                              false, // We'll add custom controls
+                          myLocationButtonEnabled: false,
                         ),
-                      ],
-                    ),
-                    child: Column(
-                      children: [
-                        // Map title
-                        Text(
-                          'Is this your farm?',
-                          style: GoogleFonts.roboto(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.black87,
-                          ),
-                        ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
-                        
-                        const SizedBox(height: 20),
-                        
-                        // Map container
-                        Expanded(
-                          child: Container(
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(20),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
+                      ),
+                      // Zoom controls
+                      Positioned(
+                        top: 20,
+                        right: 20,
+                        child: Column(
+                          children: [
+                            FloatingActionButton(
+                              heroTag: 'zoomIn',
+                              mini: true,
+                              backgroundColor: Colors.white,
+                              onPressed: _zoomIn,
+                              child: const Icon(Icons.add, color: Colors.black),
                             ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(20),
-                              child: Stack(
-                                children: [
-                                  // Map image
-                                  Image.asset(
-                                    'images/mapsPlaceholder.png',
-                                    width: double.infinity,
-                                    height: double.infinity,
-                                    fit: BoxFit.cover,
-                                  ),
-                                  
-                                  // Map controls overlay
-                                  Positioned(
-                                    top: 15,
-                                    right: 15,
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(12),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black.withOpacity(0.1),
-                                            blurRadius: 6,
-                                            offset: const Offset(0, 2),
-                                          ),
-                                        ],
-                                      ),
-                                      child: Column(
-                                        children: [
-                                          IconButton(
-                                            icon: const Icon(Icons.add),
-                                            onPressed: () {}, // Zoom in functionality
-                                            color: MyColors().forestGreen,
-                                          ),
-                                          const Divider(height: 1, thickness: 1),
-                                          IconButton(
-                                            icon: const Icon(Icons.remove),
-                                            onPressed: () {}, // Zoom out functionality
-                                            color: MyColors().forestGreen,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  
-                                  // Instructions overlay
-                                  Positioned(
-                                    bottom: 15,
-                                    left: 15,
-                                    right: 15,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(12),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black.withOpacity(0.1),
-                                            blurRadius: 6,
-                                            offset: const Offset(0, 2),
-                                          ),
-                                        ],
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            FontAwesomeIcons.locationPin,
-                                            color: MyColors().forestGreen,
-                                            size: 18,
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: Text(
-                                              'Tap on the map to place your farm pin',
-                                              style: GoogleFonts.roboto(
-                                                fontSize: 14,
-                                                color: Colors.black87,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                            const SizedBox(height: 8),
+                            FloatingActionButton(
+                              heroTag: 'zoomOut',
+                              mini: true,
+                              backgroundColor: Colors.white,
+                              onPressed: _zoomOut,
+                              child: const Icon(
+                                Icons.remove,
+                                color: Colors.black,
                               ),
                             ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                // Confirm button
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.only(top: 5, left: 25, right: 25),
+                  child: Column(
+                    children: [
+                      isLoading
+                          ? const Center(
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                            ),
+                          )
+                          : CommonButton(
+                            customWidth: 200,
+                            buttonText: 'Confirm Location',
+                            onTap: _confirmLocation,
                           ),
-                        ).animate().fadeIn(duration: 600.ms, delay: 200.ms),
-                        
-                        const SizedBox(height: 20),
-                        
-                        // Next button
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.only(top: 5),
-                          child: Column(
-                            children: [
-                              CommonButton(
-                                customWidth: 200,
-                                buttonText: 'Confirm Location',
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => const FarmIrrigation(),
-                                    ),
-                                  );
-                                },
-                              ),
-                              const SizedBox(height: 15),
-                              Text(
-                                "Next: Farm irrigation details",
-                                style: GoogleFonts.roboto(
-                                  fontSize: 14,
-                                  color: Colors.grey[600],
-                                  fontStyle: FontStyle.italic,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ).animate().fadeIn(duration: 800.ms, delay: 400.ms),
-                      ],
-                    ),
-                  ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.05, end: 0),
+                      const SizedBox(height: 15),
+                      Text(
+                        "Next: Farm irrigation details",
+                        style: GoogleFonts.roboto(
+                          fontSize: 14,
+                          color: Colors.white.withOpacity(0.8),
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),

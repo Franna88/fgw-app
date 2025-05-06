@@ -18,18 +18,20 @@ class PortionInfo extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
             Icon(Icons.circle_outlined),
-            const SizedBox(width: 5,),
+            const SizedBox(
+              width: 5,
+            ),
             Text(
               text,
               style: GoogleFonts.roboto(
-                fontSize: MyUtility(context).width < 390 ? 15 : 18,
+                fontSize: MyUtility(context).width < 390 ? 15 : 17.5,
               ),
             ),
             const Spacer(),
             Text(
               amounts,
               style: GoogleFonts.roboto(
-                fontSize: MyUtility(context).width < 390 ? 15 : 18,
+                fontSize: MyUtility(context).width < 390 ? 15 : 17.5,
               ),
             ),
           ],

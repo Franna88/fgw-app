@@ -7,6 +7,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:provider/provider.dart';
+import 'package:farming_gods_way/services/user_provider.dart';
+import 'package:farming_gods_way/services/firebase_service.dart';
 
 import '../../CommonUi/Buttons/commonButton.dart';
 import '../../Constants/colors.dart';
@@ -21,7 +24,8 @@ class FarmWorkers extends StatefulWidget {
 class _FarmWorkersState extends State<FarmWorkers> {
   int _workerCount = 0;
   String? _selectedExperience;
-  
+  bool isLoading = false;
+
   final _experienceLevels = [
     'No Experience',
     'Less than 1 year',
@@ -30,6 +34,121 @@ class _FarmWorkersState extends State<FarmWorkers> {
     '5-10 years',
     'More than 10 years'
   ];
+
+  void _completeRegistration() async {
+    if (_selectedExperience == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please select worker experience level'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      // Get the farmId from provider
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final farmId = userProvider.registrationData['farmId'];
+
+      if (farmId != null) {
+        // Save workers data
+        final workersData = {
+          'workerCount': _workerCount,
+          'workerExperience': _selectedExperience,
+          'registrationStep': 'workers',
+          'registrationComplete': true,
+          'registrationCompletedAt': DateTime.now().toIso8601String(),
+          'updatedAt': DateTime.now().toIso8601String(),
+        };
+
+        // Store in provider
+        userProvider.storeRegistrationData(workersData);
+
+        // Update in Firestore
+        await FirebaseService.firestore
+            .collection('farms')
+            .doc(farmId)
+            .update(workersData);
+
+        // Show success dialog
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                title: Row(
+                  children: [
+                    Icon(
+                      Icons.check_circle,
+                      color: Colors.green,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      'Registration Complete',
+                      style: GoogleFonts.robotoSlab(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                content: Text(
+                  'Your farm registration has been successfully completed!',
+                  style: GoogleFonts.roboto(fontSize: 16),
+                ),
+                actions: [
+                  TextButton(
+                    child: const Text('OK'),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      // Navigate to login
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const Login(),
+                        ),
+                        (route) => false,
+                      );
+                    },
+                  ),
+                ],
+              );
+            },
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content:
+                Text('Farm ID not found. Please restart farm registration.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error saving workers data: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +167,7 @@ class _FarmWorkersState extends State<FarmWorkers> {
               ),
             ),
           ),
-          
+
           // Main content
           SafeArea(
             child: Column(
@@ -56,7 +175,8 @@ class _FarmWorkersState extends State<FarmWorkers> {
               children: [
                 // Header section
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
                   child: Row(
                     children: [
                       IconButton(
@@ -90,10 +210,11 @@ class _FarmWorkersState extends State<FarmWorkers> {
                     ],
                   ),
                 ),
-                
+
                 // Progress indicator
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
                   child: Container(
                     height: 4,
                     decoration: BoxDecoration(
@@ -102,14 +223,15 @@ class _FarmWorkersState extends State<FarmWorkers> {
                     ),
                   ).animate().fadeIn(delay: 300.ms),
                 ),
-                
+
                 const SizedBox(height: 10),
-                
+
                 // Form content
                 Expanded(
                   child: Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 30),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 25, vertical: 30),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: const BorderRadius.only(
@@ -135,10 +257,13 @@ class _FarmWorkersState extends State<FarmWorkers> {
                             fontWeight: FontWeight.w600,
                             color: Colors.black87,
                           ),
-                        ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
-                        
+                        )
+                            .animate()
+                            .fadeIn(duration: 400.ms)
+                            .slideY(begin: 0.1, end: 0),
+
                         const SizedBox(height: 10),
-                        
+
                         // Description
                         Text(
                           "Tell us about the available workers on your farm",
@@ -146,10 +271,13 @@ class _FarmWorkersState extends State<FarmWorkers> {
                             fontSize: 14,
                             color: Colors.grey[600],
                           ),
-                        ).animate().fadeIn(duration: 400.ms, delay: 100.ms).slideY(begin: 0.1, end: 0),
-                        
+                        )
+                            .animate()
+                            .fadeIn(duration: 400.ms, delay: 100.ms)
+                            .slideY(begin: 0.1, end: 0),
+
                         const SizedBox(height: 30),
-                        
+
                         // Number of workers
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -167,11 +295,13 @@ class _FarmWorkersState extends State<FarmWorkers> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 20, vertical: 12),
                                   decoration: BoxDecoration(
                                     color: Colors.grey[50],
                                     borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: Colors.grey[300]!),
+                                    border:
+                                        Border.all(color: Colors.grey[300]!),
                                   ),
                                   child: Row(
                                     children: [
@@ -203,9 +333,9 @@ class _FarmWorkersState extends State<FarmWorkers> {
                             ),
                           ],
                         ).animate().fadeIn(duration: 500.ms, delay: 200.ms),
-                        
+
                         const SizedBox(height: 30),
-                        
+
                         // Average experience dropdown
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -229,7 +359,8 @@ class _FarmWorkersState extends State<FarmWorkers> {
                                 child: DropdownButton<String>(
                                   value: _selectedExperience,
                                   hint: Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16),
                                     child: Text(
                                       'Select experience level',
                                       style: GoogleFonts.roboto(
@@ -240,7 +371,8 @@ class _FarmWorkersState extends State<FarmWorkers> {
                                   ),
                                   isExpanded: true,
                                   borderRadius: BorderRadius.circular(12),
-                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16),
                                   icon: Icon(
                                     Icons.arrow_drop_down_rounded,
                                     color: MyColors().forestGreen,
@@ -267,9 +399,9 @@ class _FarmWorkersState extends State<FarmWorkers> {
                             ),
                           ],
                         ).animate().fadeIn(duration: 500.ms, delay: 300.ms),
-                        
+
                         const Spacer(),
-                        
+
                         // Completion message
                         Container(
                           width: double.infinity,
@@ -307,75 +439,33 @@ class _FarmWorkersState extends State<FarmWorkers> {
                             ],
                           ),
                         ).animate().fadeIn(duration: 600.ms, delay: 400.ms),
-                        
+
                         const SizedBox(height: 30),
-                        
+
                         // Complete button
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.only(top: 5),
                           child: Column(
                             children: [
-                              CommonButton(
-                                customWidth: 240,
-                                buttonText: 'Complete Registration',
-                                onTap: () {
-                                  // Show success dialog
-                                  showDialog(
-                                    context: context,
-                                    builder: (BuildContext context) {
-                                      return AlertDialog(
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(20),
-                                        ),
-                                        title: Row(
-                                          children: [
-                                            Icon(
-                                              Icons.check_circle,
-                                              color: Colors.green,
-                                              size: 24,
-                                            ),
-                                            const SizedBox(width: 10),
-                                            Text(
-                                              'Registration Complete',
-                                              style: GoogleFonts.robotoSlab(
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        content: Text(
-                                          'Your farm registration has been successfully completed!',
-                                          style: GoogleFonts.roboto(fontSize: 16),
-                                        ),
-                                        actions: [
-                                          TextButton(
-                                            child: const Text('OK'),
-                                            onPressed: () {
-                                              Navigator.pop(context);
-                                              // Navigate to login
-                                              Navigator.pushAndRemoveUntil(
-                                                context,
-                                                MaterialPageRoute(
-                                                  builder: (context) => const Login(),
-                                                ),
-                                                (route) => false,
-                                              );
-                                            },
-                                          ),
-                                        ],
-                                      );
-                                    },
-                                  );
-                                },
-                              ),
+                              isLoading
+                                  ? CircularProgressIndicator(
+                                      color: MyColors().forestGreen,
+                                    )
+                                  : CommonButton(
+                                      customWidth: 240,
+                                      buttonText: 'Complete Registration',
+                                      onTap: _completeRegistration,
+                                    ),
                             ],
                           ),
                         ).animate().fadeIn(duration: 800.ms, delay: 500.ms),
                       ],
                     ),
-                  ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.05, end: 0),
+                  )
+                      .animate()
+                      .fadeIn(duration: 400.ms)
+                      .slideY(begin: 0.05, end: 0),
                 ),
               ],
             ),

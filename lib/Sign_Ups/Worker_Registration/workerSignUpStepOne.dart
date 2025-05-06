@@ -5,8 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 import '../../../Constants/colors.dart';
+import '../../services/user_provider.dart';
 
 class WorkerSignUpStepOne extends StatefulWidget {
   const WorkerSignUpStepOne({super.key});
@@ -22,8 +26,10 @@ class _WorkerSignUpStepOneState extends State<WorkerSignUpStepOne> {
   final TextEditingController firstNameController = TextEditingController();
   final TextEditingController lastNameController = TextEditingController();
   final TextEditingController idPassportController = TextEditingController();
-  
+
   bool hasUploadedDocument = false;
+  File? _documentFile;
+  bool _isLoading = false;
 
   String? _validateEmail(String? value) {
     if (value == null || value.isEmpty) {
@@ -56,6 +62,23 @@ class _WorkerSignUpStepOneState extends State<WorkerSignUpStepOne> {
 
   void _onNextPressed() {
     if (_formKey.currentState!.validate()) {
+      // Store the worker data in UserProvider
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+
+      // First clear any existing registration data
+      userProvider.clearRegistrationData();
+
+      // Then store the new data
+      userProvider.storeRegistrationData({
+        'email': emailController.text.trim(),
+        'firstName': firstNameController.text.trim(),
+        'lastName': lastNameController.text.trim(),
+        'idPassportNumber': idPassportController.text.trim(),
+        'userType': 'worker', // Mark this as a worker registration
+        'hasUploadedDocument': hasUploadedDocument,
+        // Don't store the document file here - it will be uploaded later
+      });
+
       // Proceed to next step if validation is successful
       Navigator.push(
         context,
@@ -72,24 +95,50 @@ class _WorkerSignUpStepOneState extends State<WorkerSignUpStepOne> {
       );
     }
   }
-  
-  void _uploadDocument() {
-    // This would normally open a file picker
-    // For demonstration purposes, we'll just set the state
-    setState(() {
-      hasUploadedDocument = true;
-    });
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Document uploaded successfully'),
-        backgroundColor: MyColors().forestGreen,
-      ),
-    );
+
+  Future<void> _uploadDocument() async {
+    try {
+      // Use image picker to select document
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80,
+      );
+
+      if (image != null) {
+        setState(() {
+          _documentFile = File(image.path);
+          hasUploadedDocument = true;
+        });
+
+        // Store file path in UserProvider for later use
+        final userProvider = Provider.of<UserProvider>(context, listen: false);
+        userProvider.storeRegistrationData({
+          'documentFilePath': image.path,
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Document selected successfully'),
+            backgroundColor: MyColors().forestGreen,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error selecting document: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context);
+    _isLoading = userProvider.isLoading;
+
     return Scaffold(
       backgroundColor: MyColors().forestGreen.withOpacity(0.9),
       body: Stack(
@@ -105,7 +154,7 @@ class _WorkerSignUpStepOneState extends State<WorkerSignUpStepOne> {
               ),
             ),
           ),
-          
+
           // Main content
           SafeArea(
             child: Column(
@@ -113,7 +162,8 @@ class _WorkerSignUpStepOneState extends State<WorkerSignUpStepOne> {
               children: [
                 // Header section
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
                   child: Row(
                     children: [
                       IconButton(
@@ -147,10 +197,11 @@ class _WorkerSignUpStepOneState extends State<WorkerSignUpStepOne> {
                     ],
                   ),
                 ),
-                
+
                 // Progress indicator
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
                   child: Row(
                     children: [
                       Expanded(
@@ -177,9 +228,9 @@ class _WorkerSignUpStepOneState extends State<WorkerSignUpStepOne> {
                     ],
                   ).animate().fadeIn(delay: 300.ms),
                 ),
-                
+
                 const SizedBox(height: 10),
-                
+
                 // Form content
                 Expanded(
                   child: Container(
@@ -207,7 +258,7 @@ class _WorkerSignUpStepOneState extends State<WorkerSignUpStepOne> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const SizedBox(height: 10),
-                            
+
                             // Email field
                             _buildFormField(
                               label: 'Email Address',
@@ -216,32 +267,43 @@ class _WorkerSignUpStepOneState extends State<WorkerSignUpStepOne> {
                               icon: Icons.email_outlined,
                               validator: _validateEmail,
                               keyboardType: TextInputType.emailAddress,
-                            ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
-                            
+                            )
+                                .animate()
+                                .fadeIn(duration: 400.ms)
+                                .slideY(begin: 0.1, end: 0),
+
                             const SizedBox(height: 20),
-                            
+
                             // First name field
                             _buildFormField(
                               label: 'First Name',
                               controller: firstNameController,
                               hintText: 'Enter your first name',
                               icon: Icons.person_outline,
-                              validator: (value) => _validateNotEmpty(value, 'First Name'),
-                            ).animate().fadeIn(duration: 500.ms, delay: 100.ms).slideY(begin: 0.1, end: 0),
-                            
+                              validator: (value) =>
+                                  _validateNotEmpty(value, 'First Name'),
+                            )
+                                .animate()
+                                .fadeIn(duration: 500.ms, delay: 100.ms)
+                                .slideY(begin: 0.1, end: 0),
+
                             const SizedBox(height: 20),
-                            
+
                             // Last name field
                             _buildFormField(
                               label: 'Last Name',
                               controller: lastNameController,
                               hintText: 'Enter your last name',
                               icon: Icons.person_outline,
-                              validator: (value) => _validateNotEmpty(value, 'Last Name'),
-                            ).animate().fadeIn(duration: 600.ms, delay: 200.ms).slideY(begin: 0.1, end: 0),
-                            
+                              validator: (value) =>
+                                  _validateNotEmpty(value, 'Last Name'),
+                            )
+                                .animate()
+                                .fadeIn(duration: 600.ms, delay: 200.ms)
+                                .slideY(begin: 0.1, end: 0),
+
                             const SizedBox(height: 20),
-                            
+
                             // ID/Passport field
                             _buildFormField(
                               label: 'ID/Passport Number',
@@ -249,10 +311,13 @@ class _WorkerSignUpStepOneState extends State<WorkerSignUpStepOne> {
                               hintText: 'Enter your ID or passport number',
                               icon: Icons.badge_outlined,
                               validator: _validateIdPassport,
-                            ).animate().fadeIn(duration: 700.ms, delay: 300.ms).slideY(begin: 0.1, end: 0),
-                            
+                            )
+                                .animate()
+                                .fadeIn(duration: 700.ms, delay: 300.ms)
+                                .slideY(begin: 0.1, end: 0),
+
                             const SizedBox(height: 25),
-                            
+
                             // Document upload section
                             InkWell(
                               onTap: _uploadDocument,
@@ -260,10 +325,12 @@ class _WorkerSignUpStepOneState extends State<WorkerSignUpStepOne> {
                               child: Container(
                                 padding: const EdgeInsets.all(15),
                                 decoration: BoxDecoration(
-                                  color: MyColors().forestGreen.withOpacity(0.05),
+                                  color:
+                                      MyColors().forestGreen.withOpacity(0.05),
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                    color: MyColors().forestGreen.withOpacity(0.3),
+                                    color:
+                                        MyColors().forestGreen.withOpacity(0.3),
                                   ),
                                 ),
                                 child: Row(
@@ -272,13 +339,15 @@ class _WorkerSignUpStepOneState extends State<WorkerSignUpStepOne> {
                                       width: 50,
                                       height: 50,
                                       decoration: BoxDecoration(
-                                        color: MyColors().forestGreen.withOpacity(0.1),
+                                        color: MyColors()
+                                            .forestGreen
+                                            .withOpacity(0.1),
                                         borderRadius: BorderRadius.circular(10),
                                       ),
                                       child: Icon(
-                                        hasUploadedDocument ? 
-                                          Icons.check_circle_outline : 
-                                          Icons.cloud_upload_outlined,
+                                        hasUploadedDocument
+                                            ? Icons.check_circle_outline
+                                            : Icons.cloud_upload_outlined,
                                         color: MyColors().forestGreen,
                                         size: 24,
                                       ),
@@ -286,12 +355,13 @@ class _WorkerSignUpStepOneState extends State<WorkerSignUpStepOne> {
                                     const SizedBox(width: 15),
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            hasUploadedDocument ? 
-                                              "Document Uploaded" : 
-                                              "Upload ID/Passport Document",
+                                            hasUploadedDocument
+                                                ? "Document Uploaded"
+                                                : "Upload ID/Passport Document",
                                             style: GoogleFonts.roboto(
                                               fontSize: 16,
                                               fontWeight: FontWeight.w500,
@@ -300,9 +370,9 @@ class _WorkerSignUpStepOneState extends State<WorkerSignUpStepOne> {
                                           ),
                                           const SizedBox(height: 5),
                                           Text(
-                                            hasUploadedDocument ?
-                                              "Tap to change document" :
-                                              "Please provide a photo of your ID/Passport",
+                                            hasUploadedDocument
+                                                ? "Tap to change document"
+                                                : "Please provide a photo of your ID/Passport",
                                             style: GoogleFonts.roboto(
                                               fontSize: 14,
                                               color: Colors.grey[600],
@@ -315,24 +385,31 @@ class _WorkerSignUpStepOneState extends State<WorkerSignUpStepOne> {
                                 ),
                               ),
                             ).animate().fadeIn(duration: 800.ms, delay: 400.ms),
-                            
+
                             const SizedBox(height: 40),
-                            
+
                             // Next button
                             Center(
-                              child: CommonButton(
-                                customWidth: 160,
-                                buttonText: 'Next',
-                                onTap: _onNextPressed,
-                              ),
+                              child: _isLoading
+                                  ? CircularProgressIndicator(
+                                      color: MyColors().forestGreen,
+                                    )
+                                  : CommonButton(
+                                      customWidth: 160,
+                                      buttonText: 'Next',
+                                      onTap: _onNextPressed,
+                                    ),
                             ).animate().fadeIn(duration: 900.ms, delay: 500.ms),
-                            
+
                             const SizedBox(height: 20),
                           ],
                         ),
                       ),
                     ),
-                  ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.05, end: 0),
+                  )
+                      .animate()
+                      .fadeIn(duration: 400.ms)
+                      .slideY(begin: 0.05, end: 0),
                 ),
               ],
             ),
@@ -341,7 +418,7 @@ class _WorkerSignUpStepOneState extends State<WorkerSignUpStepOne> {
       ),
     );
   }
-  
+
   Widget _buildFormField({
     required String label,
     required TextEditingController controller,
@@ -375,7 +452,8 @@ class _WorkerSignUpStepOneState extends State<WorkerSignUpStepOne> {
               border: InputBorder.none,
               hintText: hintText,
               hintStyle: TextStyle(color: Colors.grey[400]),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 16),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 15, vertical: 16),
               prefixIcon: Icon(icon, color: MyColors().forestGreen),
             ),
             validator: validator,

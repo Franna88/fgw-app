@@ -5,18 +5,26 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../services/firebase_service.dart';
 
 import '../../Constants/colors.dart';
 import '../../Constants/myutility.dart';
 
 class TaskCreateDetails extends StatefulWidget {
-  final String selectedField;
-  final String selectedPortion;
-  
+  final String fieldId;
+  final String portionId;
+  final String fieldName;
+  final String portionName;
+  final String? rowNumber;
+
   const TaskCreateDetails({
-    super.key, 
-    required this.selectedField,
-    required this.selectedPortion,
+    super.key,
+    required this.fieldId,
+    required this.portionId,
+    required this.fieldName,
+    required this.portionName,
+    this.rowNumber,
   });
 
   @override
@@ -27,13 +35,13 @@ class _TaskCreateDetailsState extends State<TaskCreateDetails> {
   final TextEditingController _taskController = TextEditingController();
   bool _isImportant = false;
   DateTime _dueDate = DateTime.now().add(const Duration(days: 3));
-  
+
   @override
   void dispose() {
     _taskController.dispose();
     super.dispose();
   }
-  
+
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -53,7 +61,7 @@ class _TaskCreateDetailsState extends State<TaskCreateDetails> {
         );
       },
     );
-    
+
     if (picked != null && picked != _dueDate) {
       setState(() {
         _dueDate = picked;
@@ -61,37 +69,130 @@ class _TaskCreateDetailsState extends State<TaskCreateDetails> {
     }
   }
 
-  void _createTask() {
+  // Get user-specific collection reference
+  CollectionReference _getUserTasksCollection() {
+    final userId = FirebaseService.currentUser?.uid;
+    if (userId == null) {
+      throw Exception('User not logged in');
+    }
+    return FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .collection('tasks');
+  }
+
+  Future<void> _createTask() async {
     if (_taskController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a task description')),
       );
       return;
     }
-    
-    // Here you would actually save the task to your database
-    // For now we'll just show a success message and navigate back
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Task created successfully!')),
-    );
-    
-    // Pop twice to go back to the main tasks screen
-    Navigator.of(context).pop();
-    Navigator.of(context).pop();
+
+    try {
+      // Check if user is logged in
+      final userId = FirebaseService.currentUser?.uid;
+      if (userId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('You must be logged in to create a task')),
+        );
+        return;
+      }
+
+      // Create the new task in the user's tasks collection
+      final taskRef = _getUserTasksCollection().doc();
+      final newTask = {
+        'title': _taskController.text.trim(),
+        'description': _taskController.text.trim(),
+        'isHighPriority': _isImportant,
+        'priority': _isImportant ? 'High' : 'Medium',
+        'dueDate': Timestamp.fromDate(_dueDate),
+        'createdAt': FieldValue.serverTimestamp(),
+        'isCompleted': false,
+        'fieldId': widget.fieldId,
+        'portionId': widget.portionId,
+        'fieldName': widget.fieldName,
+        'portionName': widget.portionName,
+        'rowNumber': widget.rowNumber,
+        'cropType': '', // You might want to add a field to capture this
+        'userId':
+            userId, // Store user ID in the document for additional security
+      };
+
+      // Save the task
+      await taskRef.set(newTask);
+
+      // Update the portion's row task count
+      if (widget.rowNumber != null) {
+        final portionRef = FirebaseFirestore.instance
+            .collection('users')
+            .doc(userId)
+            .collection('cropFields')
+            .doc(widget.fieldId)
+            .collection('portions')
+            .doc(widget.portionId);
+
+        final portionDoc = await portionRef.get();
+        if (portionDoc.exists) {
+          final portionData = portionDoc.data();
+          if (portionData != null && portionData['rows'] != null) {
+            final rows = List<dynamic>.from(portionData['rows']);
+
+            // Find the row
+            final rowIndex = rows.indexWhere(
+                (row) => row['rowNumber'].toString() == widget.rowNumber);
+
+            if (rowIndex != -1) {
+              // Update existing row
+              rows[rowIndex]['totalTasks'] =
+                  (rows[rowIndex]['totalTasks'] ?? 0) + 1;
+              rows[rowIndex]['updatedAt'] = DateTime.now().toIso8601String();
+
+              // Recalculate progress
+              final tasksCompleted = rows[rowIndex]['tasksCompleted'] ?? 0;
+              final totalTasks = rows[rowIndex]['totalTasks'];
+              final progressValue =
+                  totalTasks > 0 ? tasksCompleted / totalTasks : 0.0;
+              rows[rowIndex]['progressValue'] = progressValue;
+
+              // Update the portion
+              await portionRef.update({
+                'rows': rows,
+                'updatedAt': FieldValue.serverTimestamp(),
+              });
+            }
+          }
+        }
+      }
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Task created successfully!')),
+      );
+
+      // Pop twice to go back to the main tasks screen
+      if (mounted) {
+        Navigator.of(context).pop();
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to create task: $e')),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final myColors = MyColors();
-    
+
     return Scaffold(
       backgroundColor: myColors.forestGreen,
       body: SafeArea(
         child: Column(
           children: [
             const FgwTopBar(title: 'Task Details'),
-            
             Expanded(
               child: Container(
                 width: double.infinity,
@@ -138,27 +239,39 @@ class _TaskCreateDetailsState extends State<TaskCreateDetails> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      'Field: ${widget.selectedField}',
+                                      'Field: ${widget.fieldName}',
                                       style: const TextStyle(
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      'Portion: ${widget.selectedPortion}',
+                                      'Portion: ${widget.portionName}',
                                       style: TextStyle(
                                         color: Colors.grey[700],
                                       ),
                                     ),
+                                    if (widget.rowNumber != null) ...[
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Row: ${widget.rowNumber}',
+                                        style: TextStyle(
+                                          color: Colors.grey[700],
+                                        ),
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ),
                             ],
                           ),
-                        ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.2, end: 0),
-                        
+                        )
+                            .animate()
+                            .fadeIn(duration: 400.ms)
+                            .slideY(begin: 0.2, end: 0),
+
                         const SizedBox(height: 20),
-                        
+
                         // Header
                         Padding(
                           padding: const EdgeInsets.only(bottom: 24, top: 8),
@@ -173,14 +286,14 @@ class _TaskCreateDetailsState extends State<TaskCreateDetails> {
                               Text(
                                 'Define Your Task',
                                 style: GoogleFonts.robotoSlab(
-                                  fontSize: 20, 
+                                  fontSize: 20,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ],
                           ),
                         ).animate().fadeIn(duration: 400.ms, delay: 100.ms),
-                        
+
                         // Task description field
                         Text(
                           'Task Description',
@@ -214,9 +327,9 @@ class _TaskCreateDetailsState extends State<TaskCreateDetails> {
                             ),
                           ),
                         ).animate().fadeIn(duration: 400.ms, delay: 300.ms),
-                        
+
                         const SizedBox(height: 24),
-                        
+
                         // Due date selector
                         Text(
                           'Due Date',
@@ -230,7 +343,8 @@ class _TaskCreateDetailsState extends State<TaskCreateDetails> {
                           onTap: () => _selectDate(context),
                           borderRadius: BorderRadius.circular(12),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(12),
@@ -259,9 +373,9 @@ class _TaskCreateDetailsState extends State<TaskCreateDetails> {
                             ),
                           ),
                         ).animate().fadeIn(duration: 400.ms, delay: 500.ms),
-                        
+
                         const SizedBox(height: 24),
-                        
+
                         // Reference image section
                         Text(
                           'Reference Image (Optional)',
@@ -304,9 +418,9 @@ class _TaskCreateDetailsState extends State<TaskCreateDetails> {
                             ),
                           ),
                         ).animate().fadeIn(duration: 400.ms, delay: 700.ms),
-                        
+
                         const SizedBox(height: 24),
-                        
+
                         // Priority checkbox
                         InkWell(
                           onTap: () {
@@ -316,15 +430,16 @@ class _TaskCreateDetailsState extends State<TaskCreateDetails> {
                           },
                           borderRadius: BorderRadius.circular(12),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
                             decoration: BoxDecoration(
-                              color: _isImportant 
-                                  ? myColors.lightGreen.withOpacity(0.1) 
+                              color: _isImportant
+                                  ? myColors.lightGreen.withOpacity(0.1)
                                   : Colors.white,
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: _isImportant 
-                                    ? myColors.forestGreen 
+                                color: _isImportant
+                                    ? myColors.forestGreen
                                     : Colors.grey[300]!,
                               ),
                             ),
@@ -348,11 +463,11 @@ class _TaskCreateDetailsState extends State<TaskCreateDetails> {
                                   'Mark as High Priority',
                                   style: TextStyle(
                                     fontSize: 16,
-                                    fontWeight: _isImportant 
-                                        ? FontWeight.w600 
+                                    fontWeight: _isImportant
+                                        ? FontWeight.w600
                                         : FontWeight.normal,
-                                    color: _isImportant 
-                                        ? myColors.forestGreen 
+                                    color: _isImportant
+                                        ? myColors.forestGreen
                                         : Colors.black87,
                                   ),
                                 ),

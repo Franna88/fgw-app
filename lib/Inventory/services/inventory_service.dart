@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:uuid/uuid.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../services/firebase_service.dart';
 
 import '../models/inventory_item.dart';
 
@@ -10,7 +12,10 @@ class InventoryService {
   static const String _storageKey = 'inventory_items';
   static const Uuid _uuid = Uuid();
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
-  
+
+  // Get current user ID
+  String? get _currentUserId => FirebaseService.currentUser?.uid;
+
   // Use secure storage as fallback
   Future<void> _saveToSecureStorage(List<String> items) async {
     try {
@@ -22,7 +27,7 @@ class InventoryService {
       debugPrint('Error saving to secure storage: $e');
     }
   }
-  
+
   Future<List<String>> _getFromSecureStorage() async {
     try {
       final data = await _secureStorage.read(key: _storageKey);
@@ -35,20 +40,20 @@ class InventoryService {
     }
     return [];
   }
-  
+
   // Initialize and get dummy data for testing without relying on SharedPreferences
   Future<List<InventoryItem>> getAllItems() async {
     try {
       // Try SharedPreferences first
       final prefs = await SharedPreferences.getInstance();
       final itemsJson = prefs.getStringList(_storageKey);
-      
+
       if (itemsJson != null && itemsJson.isNotEmpty) {
         return itemsJson
             .map((item) => InventoryItem.fromMap(jsonDecode(item)))
             .toList();
       }
-      
+
       // Try secure storage as fallback
       final secureItems = await _getFromSecureStorage();
       if (secureItems.isNotEmpty) {
@@ -56,7 +61,7 @@ class InventoryService {
             .map((item) => InventoryItem.fromMap(jsonDecode(item)))
             .toList();
       }
-      
+
       // If no data in either storage, return dummy items
       return _getDummyItems();
     } catch (e) {
@@ -65,7 +70,7 @@ class InventoryService {
       return _getDummyItems();
     }
   }
-  
+
   // Get dummy items for testing
   List<InventoryItem> _getDummyItems() {
     return [
@@ -91,22 +96,77 @@ class InventoryService {
       ),
     ];
   }
-  
-  // Get items by category
-  Future<List<InventoryItem>> getItemsByCategory(String category) async {
-    try {
-      final items = await getAllItems();
-      return items.where((item) => item.category == category).toList();
-    } catch (e) {
-      debugPrint('Error getting items by category: $e');
-      // Return filtered dummy data for the category
-      return _getDummyItems()
-          .where((item) => item.category == category)
-          .toList();
+
+  String _getFirestoreCollection(String category) {
+    // Convert category to snake_case for Firestore collection names
+    switch (category) {
+      case 'Crops':
+        return 'inventory_crops';
+      case 'Livestock':
+        return 'inventory_livestock';
+      case 'Pest Control':
+        return 'inventory_pest_control';
+      case 'Tools/Equipment':
+        return 'inventory_tools_equipment';
+      case 'Soil':
+        return 'inventory_soil';
+      case 'Seeds':
+        return 'inventory_seeds';
+      case 'Animal Feed':
+        return 'inventory_animal_feed';
+      default:
+        return 'inventory_items';
     }
   }
-  
-  // Add a new item with secure storage fallback
+
+  // Get user-specific Firestore reference
+  CollectionReference _getUserCollection(String collectionName) {
+    if (_currentUserId == null) {
+      throw Exception('User not logged in');
+    }
+    return FirebaseFirestore.instance
+        .collection('users')
+        .doc(_currentUserId)
+        .collection(collectionName);
+  }
+
+  // Get items by category
+  Future<List<InventoryItem>> getItemsByCategory(String category) async {
+    // All categories now use Firestore
+    try {
+      if (_currentUserId == null) {
+        debugPrint('User not logged in, returning empty inventory');
+        return [];
+      }
+
+      final collectionName = _getFirestoreCollection(category);
+      final querySnapshot = await _getUserCollection(collectionName)
+          .orderBy('dateAdded', descending: true)
+          .get();
+
+      return querySnapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        return InventoryItem(
+          id: doc.id,
+          name: data['name'] ?? '',
+          category: data['category'] ?? category,
+          imageUrl: data['imageUrl'] ?? '',
+          quantity: data['quantity'] ?? 0,
+          unit: data['unit'] ?? 'kg',
+          dateAdded:
+              (data['dateAdded'] as Timestamp?)?.toDate() ?? DateTime.now(),
+          lastUpdated: (data['lastUpdated'] as Timestamp?)?.toDate(),
+          unitCost: (data['unitCost'] as num?)?.toDouble(),
+          notes: data['notes'],
+        );
+      }).toList();
+    } catch (e) {
+      debugPrint('Error loading $category from Firestore: $e');
+      return [];
+    }
+  }
+
+  // Add a new item
   Future<InventoryItem> addItem({
     required String name,
     required String category,
@@ -116,188 +176,197 @@ class InventoryService {
     double? unitCost,
     String? notes,
   }) async {
-    final item = InventoryItem(
-      id: _uuid.v4(),
-      name: name,
-      category: category,
-      imageUrl: imageUrl,
-      quantity: quantity,
-      unit: unit,
-      dateAdded: DateTime.now(),
-      lastUpdated: DateTime.now(),
-      unitCost: unitCost,
-      notes: notes,
-    );
-    
+    // All categories now use Firestore
     try {
-      // Try SharedPreferences first
-      final prefs = await SharedPreferences.getInstance();
-      final itemsJson = prefs.getStringList(_storageKey) ?? [];
-      
-      final encodedItem = jsonEncode(item.toMap());
-      itemsJson.add(encodedItem);
-      
-      final success = await prefs.setStringList(_storageKey, itemsJson);
-      
-      if (!success) {
-        // If SharedPreferences fails, try secure storage
-        await _saveToSecureStorage(itemsJson);
+      if (_currentUserId == null) {
+        throw Exception('User not logged in');
       }
-      
-      return item;
+
+      final collectionName = _getFirestoreCollection(category);
+      final docRef = await _getUserCollection(collectionName).add({
+        'name': name,
+        'category': category,
+        'imageUrl': imageUrl,
+        'quantity': quantity,
+        'unit': unit,
+        'unitCost': unitCost,
+        'notes': notes,
+        'dateAdded': FieldValue.serverTimestamp(),
+        'lastUpdated': FieldValue.serverTimestamp(),
+        'userId':
+            _currentUserId, // Store user ID in the document for additional security
+      });
+
+      return InventoryItem(
+        id: docRef.id,
+        name: name,
+        category: category,
+        imageUrl: imageUrl,
+        quantity: quantity,
+        unit: unit,
+        dateAdded: DateTime.now(),
+        lastUpdated: DateTime.now(),
+        unitCost: unitCost,
+        notes: notes,
+      );
     } catch (e) {
-      debugPrint('Error adding item: $e');
-      
-      try {
-        // Try secure storage as fallback
-        final items = await _getFromSecureStorage();
-        items.add(jsonEncode(item.toMap()));
-        await _saveToSecureStorage(items);
-      } catch (e) {
-        debugPrint('Error adding item to secure storage: $e');
-      }
-      
-      return item;
+      debugPrint('Error adding $category to Firestore: $e');
+      // Return a dummy item on error
+      return InventoryItem(
+        id: '',
+        name: name,
+        category: category,
+        imageUrl: imageUrl,
+        quantity: quantity,
+        unit: unit,
+        dateAdded: DateTime.now(),
+        lastUpdated: DateTime.now(),
+        unitCost: unitCost,
+        notes: notes,
+      );
     }
   }
-  
-  // Update an existing item
-  Future<InventoryItem?> updateItem(InventoryItem item) async {
-    final prefs = await SharedPreferences.getInstance();
-    final itemsJson = prefs.getStringList(_storageKey) ?? [];
-    
-    final items = itemsJson
-        .map((itemStr) => InventoryItem.fromMap(jsonDecode(itemStr)))
-        .toList();
-    
-    final index = items.indexWhere((i) => i.id == item.id);
-    if (index == -1) return null;
-    
-    item.lastUpdated = DateTime.now();
-    items[index] = item;
-    
-    final updatedItemsJson = items
-        .map((item) => jsonEncode(item.toMap()))
-        .toList();
-    
-    await prefs.setStringList(_storageKey, updatedItemsJson);
-    return item;
-  }
-  
-  // Update item quantity with secure storage fallback
-  Future<InventoryItem?> updateItemQuantity(String itemId, int newQuantity) async {
+
+  // Update item quantity in Firestore
+  Future<InventoryItem?> updateItemQuantity(
+      String itemId, int newQuantity) async {
     try {
-      // Try to get items from SharedPreferences
-      final prefs = await SharedPreferences.getInstance();
-      List<String> itemsJson = prefs.getStringList(_storageKey) ?? [];
-      
-      if (itemsJson.isEmpty) {
-        // If SharedPreferences is empty, try secure storage
-        itemsJson = await _getFromSecureStorage();
+      if (_currentUserId == null) {
+        throw Exception('User not logged in');
       }
-      
-      // Parse items and update the quantity
-      final items = itemsJson
-          .map((itemStr) => InventoryItem.fromMap(jsonDecode(itemStr)))
-          .toList();
-      
-      final index = items.indexWhere((i) => i.id == itemId);
-      if (index == -1) return null;
-      
-      items[index].updateQuantity(newQuantity);
-      
-      // Convert back to JSON
-      final updatedItemsJson = items
-          .map((item) => jsonEncode(item.toMap()))
-          .toList();
-      
-      // Try to save to SharedPreferences
-      final success = await prefs.setStringList(_storageKey, updatedItemsJson);
-      
-      if (!success) {
-        // If SharedPreferences fails, save to secure storage
-        await _saveToSecureStorage(updatedItemsJson);
-      }
-      
-      return items[index];
-    } catch (e) {
-      debugPrint('Error updating item quantity: $e');
-      
-      try {
-        // Try secure storage as fallback
-        final itemsJson = await _getFromSecureStorage();
-        
-        final items = itemsJson
-            .map((itemStr) => InventoryItem.fromMap(jsonDecode(itemStr)))
-            .toList();
-        
-        final index = items.indexWhere((i) => i.id == itemId);
-        if (index == -1) return null;
-        
-        items[index].updateQuantity(newQuantity);
-        
-        final updatedItemsJson = items
-            .map((item) => jsonEncode(item.toMap()))
-            .toList();
-        
-        await _saveToSecureStorage(updatedItemsJson);
-        
-        return items[index];
-      } catch (e) {
-        debugPrint('Error updating item in secure storage: $e');
-        // Find item in dummy data and update it (for demo purposes)
-        final dummyItems = _getDummyItems();
-        final index = dummyItems.indexWhere((i) => i.id == itemId);
-        if (index != -1) {
-          dummyItems[index].updateQuantity(newQuantity);
-          return dummyItems[index];
+
+      // Find the item in any of the collections
+      for (var category in [
+        'Crops',
+        'Livestock',
+        'Pest Control',
+        'Tools/Equipment',
+        'Soil',
+        'Seeds',
+        'Animal Feed'
+      ]) {
+        final collectionName = _getFirestoreCollection(category);
+        final docRef = _getUserCollection(collectionName).doc(itemId);
+        final doc = await docRef.get();
+
+        if (doc.exists) {
+          await docRef.update({
+            'quantity': newQuantity,
+            'lastUpdated': FieldValue.serverTimestamp(),
+          });
+
+          final data = doc.data() as Map<String, dynamic>;
+          return InventoryItem(
+            id: doc.id,
+            name: data['name'] ?? '',
+            category: data['category'] ?? category,
+            imageUrl: data['imageUrl'] ?? '',
+            quantity: newQuantity,
+            unit: data['unit'] ?? 'kg',
+            dateAdded:
+                (data['dateAdded'] as Timestamp?)?.toDate() ?? DateTime.now(),
+            lastUpdated: DateTime.now(),
+            unitCost: (data['unitCost'] as num?)?.toDouble(),
+            notes: data['notes'],
+          );
         }
       }
-      
+      return null;
+    } catch (e) {
+      debugPrint('Error updating quantity: $e');
       return null;
     }
   }
-  
+
   // Delete an item
   Future<bool> deleteItem(String itemId) async {
-    final prefs = await SharedPreferences.getInstance();
-    final itemsJson = prefs.getStringList(_storageKey) ?? [];
-    
-    final items = itemsJson
-        .map((itemStr) => InventoryItem.fromMap(jsonDecode(itemStr)))
-        .toList();
-    
-    final initialLength = items.length;
-    items.removeWhere((item) => item.id == itemId);
-    
-    if (items.length == initialLength) return false;
-    
-    final updatedItemsJson = items
-        .map((item) => jsonEncode(item.toMap()))
-        .toList();
-    
-    await prefs.setStringList(_storageKey, updatedItemsJson);
-    return true;
+    try {
+      if (_currentUserId == null) {
+        throw Exception('User not logged in');
+      }
+
+      // Try to find and delete the item in any of the collections
+      for (var category in [
+        'Crops',
+        'Livestock',
+        'Pest Control',
+        'Tools/Equipment',
+        'Soil',
+        'Seeds',
+        'Animal Feed'
+      ]) {
+        final collectionName = _getFirestoreCollection(category);
+        final docRef = _getUserCollection(collectionName).doc(itemId);
+        final doc = await docRef.get();
+
+        if (doc.exists) {
+          await docRef.delete();
+          return true;
+        }
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error deleting item: $e');
+      return false;
+    }
   }
-  
+
   // Get inventory categories
   Future<List<String>> getCategories() async {
-    final items = await getAllItems();
-    return items
-        .map((item) => item.category)
-        .toSet()
-        .toList();
+    return [
+      'Crops',
+      'Livestock',
+      'Pest Control',
+      'Tools/Equipment',
+      'Soil',
+      'Seeds',
+      'Animal Feed'
+    ];
   }
-  
+
   // Search inventory items
   Future<List<InventoryItem>> searchItems(String query) async {
-    final items = await getAllItems();
     query = query.toLowerCase();
-    
-    return items.where((item) {
-      return item.name.toLowerCase().contains(query) ||
-             item.category.toLowerCase().contains(query) ||
-             (item.notes?.toLowerCase().contains(query) ?? false);
-    }).toList();
+    List<InventoryItem> allItems = [];
+
+    try {
+      if (_currentUserId == null) {
+        debugPrint('User not logged in, returning empty search results');
+        return [];
+      }
+
+      // Search through all categories
+      for (var category in await getCategories()) {
+        final collectionName = _getFirestoreCollection(category);
+        final querySnapshot = await _getUserCollection(collectionName).get();
+
+        final items = querySnapshot.docs.map((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          return InventoryItem(
+            id: doc.id,
+            name: data['name'] ?? '',
+            category: data['category'] ?? category,
+            imageUrl: data['imageUrl'] ?? '',
+            quantity: data['quantity'] ?? 0,
+            unit: data['unit'] ?? 'kg',
+            dateAdded:
+                (data['dateAdded'] as Timestamp?)?.toDate() ?? DateTime.now(),
+            lastUpdated: (data['lastUpdated'] as Timestamp?)?.toDate(),
+            unitCost: (data['unitCost'] as num?)?.toDouble(),
+            notes: data['notes'],
+          );
+        }).where((item) {
+          return item.name.toLowerCase().contains(query) ||
+              item.category.toLowerCase().contains(query) ||
+              (item.notes?.toLowerCase().contains(query) ?? false);
+        });
+
+        allItems.addAll(items);
+      }
+      return allItems;
+    } catch (e) {
+      debugPrint('Error searching items: $e');
+      return [];
+    }
   }
-} 
+}

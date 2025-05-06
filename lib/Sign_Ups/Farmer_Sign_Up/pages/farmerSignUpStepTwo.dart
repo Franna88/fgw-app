@@ -4,13 +4,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:provider/provider.dart';
+import 'package:farming_gods_way/services/user_provider.dart';
 
 import '../../../CommonUi/Buttons/commonButton.dart';
 import '../../../Constants/colors.dart';
 import '../../../Constants/myutility.dart';
 
 class FarmerSignUpStepTwo extends StatefulWidget {
-  const FarmerSignUpStepTwo({super.key});
+  final Map<String, dynamic>? userData;
+
+  const FarmerSignUpStepTwo({super.key, this.userData});
 
   @override
   State<FarmerSignUpStepTwo> createState() => _FarmerSignUpStepTwoState();
@@ -24,12 +28,34 @@ class _FarmerSignUpStepTwoState extends State<FarmerSignUpStepTwo> {
   final TextEditingController proficiencyEnglish = TextEditingController();
 
   String? selectedGender;
-  final List<String> genderOptions = ['Male', 'Female', 'Other', 'Prefer not to say'];
-  final List<String> proficiencyOptions = ['Basic', 'Intermediate', 'Advanced', 'Fluent'];
+  final List<String> genderOptions = [
+    'Male',
+    'Female',
+    'Other',
+    'Prefer not to say'
+  ];
+  final List<String> proficiencyOptions = [
+    'Basic',
+    'Intermediate',
+    'Advanced',
+    'Fluent'
+  ];
   String? selectedProficiency;
 
   void _submitForm() {
     if (_formKey.currentState!.validate()) {
+      // Collect data from this step
+      Map<String, dynamic> stepTwoData = {
+        'dateOfBirth': birthDate.text,
+        'gender': selectedGender,
+        'homeLanguage': homeLanguage.text,
+        'englishProficiency': selectedProficiency,
+      };
+
+      // Store data using provider
+      Provider.of<UserProvider>(context, listen: false)
+          .storeRegistrationData(stepTwoData);
+
       // Proceed to the next step
       Navigator.push(
         context,
@@ -47,11 +73,12 @@ class _FarmerSignUpStepTwoState extends State<FarmerSignUpStepTwo> {
       );
     }
   }
-  
+
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: DateTime.now().subtract(const Duration(days: 365 * 18)), // Default to 18 years ago
+      initialDate: DateTime.now()
+          .subtract(const Duration(days: 365 * 18)), // Default to 18 years ago
       firstDate: DateTime(1930),
       lastDate: DateTime.now(),
       builder: (context, child) {
@@ -66,7 +93,7 @@ class _FarmerSignUpStepTwoState extends State<FarmerSignUpStepTwo> {
         );
       },
     );
-    
+
     if (picked != null) {
       setState(() {
         birthDate.text = "${picked.day}/${picked.month}/${picked.year}";
@@ -91,7 +118,7 @@ class _FarmerSignUpStepTwoState extends State<FarmerSignUpStepTwo> {
               ),
             ),
           ),
-          
+
           // Main content
           SafeArea(
             child: Column(
@@ -99,7 +126,8 @@ class _FarmerSignUpStepTwoState extends State<FarmerSignUpStepTwo> {
               children: [
                 // Header section
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
                   child: Row(
                     children: [
                       IconButton(
@@ -133,10 +161,11 @@ class _FarmerSignUpStepTwoState extends State<FarmerSignUpStepTwo> {
                     ],
                   ),
                 ),
-                
+
                 // Progress indicator
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
                   child: Row(
                     children: [
                       Expanded(
@@ -163,9 +192,9 @@ class _FarmerSignUpStepTwoState extends State<FarmerSignUpStepTwo> {
                     ],
                   ).animate().fadeIn(delay: 300.ms),
                 ),
-                
+
                 const SizedBox(height: 10),
-                
+
                 // Form content
                 Expanded(
                   child: Container(
@@ -193,7 +222,7 @@ class _FarmerSignUpStepTwoState extends State<FarmerSignUpStepTwo> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const SizedBox(height: 10),
-                            
+
                             // Date of Birth field
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -213,7 +242,8 @@ class _FarmerSignUpStepTwoState extends State<FarmerSignUpStepTwo> {
                                     decoration: BoxDecoration(
                                       color: Colors.grey[100],
                                       borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: Colors.grey.shade300),
+                                      border: Border.all(
+                                          color: Colors.grey.shade300),
                                     ),
                                     child: TextFormField(
                                       controller: birthDate,
@@ -221,10 +251,15 @@ class _FarmerSignUpStepTwoState extends State<FarmerSignUpStepTwo> {
                                       decoration: InputDecoration(
                                         border: InputBorder.none,
                                         hintText: 'Select your date of birth',
-                                        hintStyle: TextStyle(color: Colors.grey[400]),
-                                        contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 16),
-                                        prefixIcon: Icon(Icons.calendar_today, color: MyColors().forestGreen),
-                                        suffixIcon: Icon(Icons.arrow_drop_down, color: Colors.grey[600]),
+                                        hintStyle:
+                                            TextStyle(color: Colors.grey[400]),
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                                horizontal: 15, vertical: 16),
+                                        prefixIcon: Icon(Icons.calendar_today,
+                                            color: MyColors().forestGreen),
+                                        suffixIcon: Icon(Icons.arrow_drop_down,
+                                            color: Colors.grey[600]),
                                       ),
                                       validator: (value) {
                                         if (value == null || value.isEmpty) {
@@ -236,10 +271,13 @@ class _FarmerSignUpStepTwoState extends State<FarmerSignUpStepTwo> {
                                   ),
                                 ),
                               ],
-                            ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
-                            
+                            )
+                                .animate()
+                                .fadeIn(duration: 400.ms)
+                                .slideY(begin: 0.1, end: 0),
+
                             const SizedBox(height: 20),
-                            
+
                             // Gender dropdown
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -257,17 +295,23 @@ class _FarmerSignUpStepTwoState extends State<FarmerSignUpStepTwo> {
                                   decoration: BoxDecoration(
                                     color: Colors.grey[100],
                                     borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: Colors.grey.shade300),
+                                    border:
+                                        Border.all(color: Colors.grey.shade300),
                                   ),
                                   child: DropdownButtonFormField<String>(
                                     value: selectedGender,
-                                    icon: Icon(Icons.arrow_drop_down, color: Colors.grey[600]),
+                                    icon: Icon(Icons.arrow_drop_down,
+                                        color: Colors.grey[600]),
                                     decoration: InputDecoration(
                                       border: InputBorder.none,
                                       hintText: 'Select your gender',
-                                      hintStyle: TextStyle(color: Colors.grey[400]),
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-                                      prefixIcon: Icon(Icons.person, color: MyColors().forestGreen),
+                                      hintStyle:
+                                          TextStyle(color: Colors.grey[400]),
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                              horizontal: 15, vertical: 5),
+                                      prefixIcon: Icon(Icons.person,
+                                          color: MyColors().forestGreen),
                                     ),
                                     items: genderOptions.map((String gender) {
                                       return DropdownMenuItem<String>(
@@ -289,10 +333,13 @@ class _FarmerSignUpStepTwoState extends State<FarmerSignUpStepTwo> {
                                   ),
                                 ),
                               ],
-                            ).animate().fadeIn(duration: 500.ms, delay: 100.ms).slideY(begin: 0.1, end: 0),
-                            
+                            )
+                                .animate()
+                                .fadeIn(duration: 500.ms, delay: 100.ms)
+                                .slideY(begin: 0.1, end: 0),
+
                             const SizedBox(height: 20),
-                            
+
                             // Home Language field
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -310,16 +357,21 @@ class _FarmerSignUpStepTwoState extends State<FarmerSignUpStepTwo> {
                                   decoration: BoxDecoration(
                                     color: Colors.grey[100],
                                     borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: Colors.grey.shade300),
+                                    border:
+                                        Border.all(color: Colors.grey.shade300),
                                   ),
                                   child: TextFormField(
                                     controller: homeLanguage,
                                     decoration: InputDecoration(
                                       border: InputBorder.none,
                                       hintText: 'Enter your home language',
-                                      hintStyle: TextStyle(color: Colors.grey[400]),
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 16),
-                                      prefixIcon: Icon(Icons.language, color: MyColors().forestGreen),
+                                      hintStyle:
+                                          TextStyle(color: Colors.grey[400]),
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                              horizontal: 15, vertical: 16),
+                                      prefixIcon: Icon(Icons.language,
+                                          color: MyColors().forestGreen),
                                     ),
                                     validator: (value) {
                                       if (value == null || value.isEmpty) {
@@ -330,10 +382,13 @@ class _FarmerSignUpStepTwoState extends State<FarmerSignUpStepTwo> {
                                   ),
                                 ),
                               ],
-                            ).animate().fadeIn(duration: 600.ms, delay: 200.ms).slideY(begin: 0.1, end: 0),
-                            
+                            )
+                                .animate()
+                                .fadeIn(duration: 600.ms, delay: 200.ms)
+                                .slideY(begin: 0.1, end: 0),
+
                             const SizedBox(height: 20),
-                            
+
                             // English Proficiency dropdown
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -351,19 +406,26 @@ class _FarmerSignUpStepTwoState extends State<FarmerSignUpStepTwo> {
                                   decoration: BoxDecoration(
                                     color: Colors.grey[100],
                                     borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: Colors.grey.shade300),
+                                    border:
+                                        Border.all(color: Colors.grey.shade300),
                                   ),
                                   child: DropdownButtonFormField<String>(
                                     value: selectedProficiency,
-                                    icon: Icon(Icons.arrow_drop_down, color: Colors.grey[600]),
+                                    icon: Icon(Icons.arrow_drop_down,
+                                        color: Colors.grey[600]),
                                     decoration: InputDecoration(
                                       border: InputBorder.none,
                                       hintText: 'Select your proficiency level',
-                                      hintStyle: TextStyle(color: Colors.grey[400]),
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-                                      prefixIcon: Icon(Icons.translate, color: MyColors().forestGreen),
+                                      hintStyle:
+                                          TextStyle(color: Colors.grey[400]),
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                              horizontal: 15, vertical: 5),
+                                      prefixIcon: Icon(Icons.translate,
+                                          color: MyColors().forestGreen),
                                     ),
-                                    items: proficiencyOptions.map((String proficiency) {
+                                    items: proficiencyOptions
+                                        .map((String proficiency) {
                                       return DropdownMenuItem<String>(
                                         value: proficiency,
                                         child: Text(proficiency),
@@ -372,7 +434,8 @@ class _FarmerSignUpStepTwoState extends State<FarmerSignUpStepTwo> {
                                     onChanged: (String? newValue) {
                                       setState(() {
                                         selectedProficiency = newValue;
-                                        proficiencyEnglish.text = newValue ?? '';
+                                        proficiencyEnglish.text =
+                                            newValue ?? '';
                                       });
                                     },
                                     validator: (value) {
@@ -384,10 +447,13 @@ class _FarmerSignUpStepTwoState extends State<FarmerSignUpStepTwo> {
                                   ),
                                 ),
                               ],
-                            ).animate().fadeIn(duration: 700.ms, delay: 300.ms).slideY(begin: 0.1, end: 0),
-                            
+                            )
+                                .animate()
+                                .fadeIn(duration: 700.ms, delay: 300.ms)
+                                .slideY(begin: 0.1, end: 0),
+
                             const SizedBox(height: 40),
-                            
+
                             // Next button
                             Center(
                               child: CommonButton(
@@ -396,13 +462,16 @@ class _FarmerSignUpStepTwoState extends State<FarmerSignUpStepTwo> {
                                 onTap: _submitForm,
                               ),
                             ).animate().fadeIn(duration: 800.ms, delay: 400.ms),
-                            
+
                             const SizedBox(height: 20),
                           ],
                         ),
                       ),
                     ),
-                  ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.05, end: 0),
+                  )
+                      .animate()
+                      .fadeIn(duration: 400.ms)
+                      .slideY(begin: 0.05, end: 0),
                 ),
               ],
             ),

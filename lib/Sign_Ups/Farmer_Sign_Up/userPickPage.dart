@@ -8,6 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:provider/provider.dart';
+import 'package:farming_gods_way/services/user_provider.dart';
 
 class UserPickPage extends StatelessWidget {
   const UserPickPage({super.key});
@@ -29,7 +31,7 @@ class UserPickPage extends StatelessWidget {
               ),
             ),
           ),
-          
+
           // Content
           SafeArea(
             child: Column(
@@ -45,9 +47,7 @@ class UserPickPage extends StatelessWidget {
                         icon: const Icon(Icons.arrow_back, color: Colors.white),
                         onPressed: () => Navigator.pop(context),
                       ).animate().fadeIn(duration: 300.ms),
-                      
                       const SizedBox(height: 20),
-                      
                       Text(
                         "Join Our Community",
                         style: GoogleFonts.robotoSlab(
@@ -55,10 +55,11 @@ class UserPickPage extends StatelessWidget {
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                         ),
-                      ).animate().fadeIn(duration: 500.ms).slideY(begin: -0.2, end: 0),
-                      
+                      )
+                          .animate()
+                          .fadeIn(duration: 500.ms)
+                          .slideY(begin: -0.2, end: 0),
                       const SizedBox(height: 10),
-                      
                       Text(
                         "Select your account type to get started",
                         style: GoogleFonts.roboto(
@@ -69,9 +70,9 @@ class UserPickPage extends StatelessWidget {
                     ],
                   ),
                 ),
-                
+
                 const SizedBox(height: 20),
-                
+
                 // Main content area
                 Expanded(
                   child: Container(
@@ -98,40 +99,53 @@ class UserPickPage extends StatelessWidget {
                         _buildOptionCard(
                           context: context,
                           title: 'Farmer',
-                          description: 'Register as a farmer to manage your farm and connect with resources',
+                          description:
+                              'Register as a farmer to manage your farm and connect with resources',
                           icon: FontAwesomeIcons.tractor,
                           color: MyColors().forestGreen,
                           onTap: () {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const FarmerSignUpStepOne(),
+                                builder: (context) =>
+                                    const FarmerSignUpStepOne(),
                               ),
                             );
                           },
-                        ).animate().fadeIn(duration: 700.ms).slideY(begin: 0.1, end: 0),
-                        
+                        )
+                            .animate()
+                            .fadeIn(duration: 700.ms)
+                            .slideY(begin: 0.1, end: 0),
+
                         const SizedBox(height: 20),
-                        
+
                         // Worker option
                         _buildOptionCard(
                           context: context,
                           title: 'Worker',
-                          description: 'Register as a farm worker to find job opportunities',
+                          description:
+                              'Register as a farm worker to find job opportunities',
                           icon: FontAwesomeIcons.personDigging,
                           color: MyColors().forestGreen,
                           onTap: () {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const WorkerSignUpStepOne(),
+                                builder: (context) =>
+                                    const WorkerSignUpStepOne(),
                               ),
                             );
                           },
-                        ).animate().fadeIn(duration: 800.ms, delay: 200.ms).slideY(begin: 0.1, end: 0),
+                        )
+                            .animate()
+                            .fadeIn(duration: 800.ms, delay: 200.ms)
+                            .slideY(begin: 0.1, end: 0),
                       ],
                     ),
-                  ).animate().fadeIn(duration: 500.ms).slideY(begin: 0.05, end: 0),
+                  )
+                      .animate()
+                      .fadeIn(duration: 500.ms)
+                      .slideY(begin: 0.05, end: 0),
                 ),
               ],
             ),
@@ -140,7 +154,7 @@ class UserPickPage extends StatelessWidget {
       ),
     );
   }
-  
+
   Widget _buildOptionCard({
     required BuildContext context,
     required String title,
@@ -150,7 +164,17 @@ class UserPickPage extends StatelessWidget {
     required VoidCallback onTap,
   }) {
     return InkWell(
-      onTap: onTap,
+      onTap: () {
+        // Clear any existing registration data before starting new flow
+        Provider.of<UserProvider>(context, listen: false)
+            .clearRegistrationData();
+
+        // Set the user type in the registration data
+        Provider.of<UserProvider>(context, listen: false)
+            .storeRegistrationData({'userType': title.toLowerCase()});
+
+        onTap();
+      },
       borderRadius: BorderRadius.circular(16),
       child: Container(
         width: double.infinity,

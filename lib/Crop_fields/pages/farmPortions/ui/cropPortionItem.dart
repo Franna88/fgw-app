@@ -10,9 +10,10 @@ class CropPortionItem extends StatelessWidget {
   final String crop;
   final String cropFaze;
   final String dayCount;
-  final String rowCount;
+  final int rowCount;
   final double progress;
-  
+  final String portionId;
+
   const CropPortionItem({
     super.key,
     required this.crop,
@@ -20,22 +21,25 @@ class CropPortionItem extends StatelessWidget {
     required this.dayCount,
     required this.rowCount,
     required this.progress,
+    required this.portionId,
   });
 
   @override
   Widget build(BuildContext context) {
     final myColors = MyColors();
-    
+
     // Determine crop icon based on crop name
     IconData getCropIcon() {
       final cropLower = crop.toLowerCase();
       if (cropLower.contains('carrot')) return FontAwesomeIcons.carrot;
-      if (cropLower.contains('spinach') || cropLower.contains('lettuce')) return FontAwesomeIcons.leaf;
-      if (cropLower.contains('tomato') || cropLower.contains('apple')) return FontAwesomeIcons.apple;
+      if (cropLower.contains('spinach') || cropLower.contains('lettuce'))
+        return FontAwesomeIcons.leaf;
+      if (cropLower.contains('tomato') || cropLower.contains('apple'))
+        return FontAwesomeIcons.apple;
       if (cropLower.contains('potato')) return FontAwesomeIcons.seedling;
       return FontAwesomeIcons.plantWilt;
     }
-    
+
     // Determine color based on phase
     Color getPhaseColor() {
       final phaseLower = cropFaze.toLowerCase();
@@ -53,9 +57,23 @@ class CropPortionItem extends StatelessWidget {
       ),
       child: InkWell(
         onTap: () {
+          if (portionId.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Invalid portion ID'),
+                behavior: SnackBarBehavior.floating,
+                backgroundColor: Colors.red,
+              ),
+            );
+            return;
+          }
+
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => const FullPortionView()),
+            MaterialPageRoute(
+                builder: (context) => FullPortionView(
+                      portionId: portionId,
+                    )),
           );
         },
         borderRadius: BorderRadius.circular(12),
@@ -75,7 +93,7 @@ class CropPortionItem extends StatelessWidget {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  "$rowCount Rows",
+                  "${rowCount > 0 ? rowCount : 'No'} Rows",
                   style: GoogleFonts.roboto(
                     color: Colors.white,
                     fontSize: 12,
@@ -83,9 +101,9 @@ class CropPortionItem extends StatelessWidget {
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 6),
-              
+
               // Crop name with icon
               Row(
                 children: [
@@ -115,9 +133,9 @@ class CropPortionItem extends StatelessWidget {
                   ),
                 ],
               ),
-              
+
               const SizedBox(height: 6),
-              
+
               // Phase badge
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -138,9 +156,9 @@ class CropPortionItem extends StatelessWidget {
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 6),
-              
+
               // Progress label
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -163,9 +181,9 @@ class CropPortionItem extends StatelessWidget {
                   ),
                 ],
               ),
-              
+
               const SizedBox(height: 3),
-              
+
               // Progress bar
               ClipRRect(
                 borderRadius: BorderRadius.circular(4),
@@ -178,9 +196,9 @@ class CropPortionItem extends StatelessWidget {
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 6),
-              
+
               // Day count
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),

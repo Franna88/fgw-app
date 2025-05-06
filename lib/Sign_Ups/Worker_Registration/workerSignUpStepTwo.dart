@@ -4,10 +4,12 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
 import '../../Constants/colors.dart';
 import '../../Constants/spaces.dart';
 import '../../CommonUi/Buttons/commonButton.dart';
+import '../../services/user_provider.dart';
 import 'workerFarmerSearch.dart';
 
 class WorkerSignUpStepTwo extends StatefulWidget {
@@ -23,6 +25,7 @@ class _WorkerSignUpStepTwoState extends State<WorkerSignUpStepTwo> {
   String? selectedGender;
   String? selectedLanguage;
   String? selectedProficiency;
+  bool _isLoading = false;
 
   final List<String> genders = ['Male', 'Female', 'Other'];
   final List<String> languages = [
@@ -51,9 +54,13 @@ class _WorkerSignUpStepTwoState extends State<WorkerSignUpStepTwo> {
       return 'Date of Birth is required';
     }
     final now = DateTime.now();
-    final age = now.year - date.year - 
-        (now.month > date.month || (now.month == date.month && now.day >= date.day) ? 0 : 1);
-        
+    final age = now.year -
+        date.year -
+        (now.month > date.month ||
+                (now.month == date.month && now.day >= date.day)
+            ? 0
+            : 1);
+
     if (age < 18) {
       return 'You must be at least 18 years old';
     }
@@ -69,8 +76,9 @@ class _WorkerSignUpStepTwoState extends State<WorkerSignUpStepTwo> {
 
   Future<void> _selectDate(BuildContext context) async {
     // Set default date to 18 years ago
-    final DateTime initialDate = DateTime.now().subtract(const Duration(days: 365 * 18));
-    
+    final DateTime initialDate =
+        DateTime.now().subtract(const Duration(days: 365 * 18));
+
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: selectedDate ?? initialDate,
@@ -95,7 +103,7 @@ class _WorkerSignUpStepTwoState extends State<WorkerSignUpStepTwo> {
         );
       },
     );
-    
+
     if (picked != null && picked != selectedDate) {
       setState(() {
         selectedDate = picked;
@@ -105,8 +113,28 @@ class _WorkerSignUpStepTwoState extends State<WorkerSignUpStepTwo> {
 
   void _onNextPressed() {
     final dateValidationResult = _validateDateOfBirth(selectedDate);
-    
-    if (_formKey.currentState!.validate() && dateValidationResult == null) {
+    final genderValidation = _validateDropdown(selectedGender, 'Gender');
+    final languageValidation =
+        _validateDropdown(selectedLanguage, 'Home Language');
+    final proficiencyValidation =
+        _validateDropdown(selectedProficiency, 'Proficiency in English');
+
+    if (_formKey.currentState!.validate() &&
+        dateValidationResult == null &&
+        genderValidation == null &&
+        languageValidation == null &&
+        proficiencyValidation == null) {
+      // Store worker details in UserProvider
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+
+      // Add the new data to existing registration data
+      userProvider.storeRegistrationData({
+        'dateOfBirth': selectedDate?.toIso8601String(),
+        'gender': selectedGender,
+        'homeLanguage': selectedLanguage,
+        'englishProficiency': selectedProficiency,
+      });
+
       // Proceed to next step if validation is successful
       Navigator.push(
         context,
@@ -115,26 +143,33 @@ class _WorkerSignUpStepTwoState extends State<WorkerSignUpStepTwo> {
         ),
       );
     } else {
+      // Show appropriate error messages
+      String errorMessage = 'Please fill in all required fields';
+
       if (dateValidationResult != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(dateValidationResult),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Please fill in all required fields'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
+        errorMessage = dateValidationResult;
+      } else if (genderValidation != null) {
+        errorMessage = genderValidation;
+      } else if (languageValidation != null) {
+        errorMessage = languageValidation;
+      } else if (proficiencyValidation != null) {
+        errorMessage = proficiencyValidation;
       }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMessage),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context);
+    _isLoading = userProvider.isLoading;
+
     return Scaffold(
       backgroundColor: MyColors().forestGreen.withOpacity(0.9),
       body: Stack(
@@ -150,7 +185,7 @@ class _WorkerSignUpStepTwoState extends State<WorkerSignUpStepTwo> {
               ),
             ),
           ),
-          
+
           // Main content
           SafeArea(
             child: Column(
@@ -158,7 +193,8 @@ class _WorkerSignUpStepTwoState extends State<WorkerSignUpStepTwo> {
               children: [
                 // Header section
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
                   child: Row(
                     children: [
                       IconButton(
@@ -192,10 +228,11 @@ class _WorkerSignUpStepTwoState extends State<WorkerSignUpStepTwo> {
                     ],
                   ),
                 ),
-                
+
                 // Progress indicator
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
                   child: Row(
                     children: [
                       Expanded(
@@ -222,9 +259,9 @@ class _WorkerSignUpStepTwoState extends State<WorkerSignUpStepTwo> {
                     ],
                   ).animate().fadeIn(delay: 300.ms),
                 ),
-                
+
                 const SizedBox(height: 10),
-                
+
                 // Form content
                 Expanded(
                   child: Container(
@@ -252,7 +289,7 @@ class _WorkerSignUpStepTwoState extends State<WorkerSignUpStepTwo> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const SizedBox(height: 10),
-                            
+
                             // Date of Birth field
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -271,11 +308,13 @@ class _WorkerSignUpStepTwoState extends State<WorkerSignUpStepTwo> {
                                   borderRadius: BorderRadius.circular(12),
                                   child: Container(
                                     height: 56,
-                                    padding: const EdgeInsets.symmetric(horizontal: 15),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 15),
                                     decoration: BoxDecoration(
                                       color: Colors.grey[100],
                                       borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: Colors.grey.shade300),
+                                      border: Border.all(
+                                          color: Colors.grey.shade300),
                                     ),
                                     child: Row(
                                       children: [
@@ -287,7 +326,8 @@ class _WorkerSignUpStepTwoState extends State<WorkerSignUpStepTwo> {
                                         Expanded(
                                           child: Text(
                                             selectedDate != null
-                                                ? DateFormat('dd MMM yyyy').format(selectedDate!)
+                                                ? DateFormat('dd MMM yyyy')
+                                                    .format(selectedDate!)
                                                 : 'Select your date of birth',
                                             style: TextStyle(
                                               color: selectedDate != null
@@ -305,10 +345,13 @@ class _WorkerSignUpStepTwoState extends State<WorkerSignUpStepTwo> {
                                   ),
                                 ),
                               ],
-                            ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
-                            
+                            )
+                                .animate()
+                                .fadeIn(duration: 400.ms)
+                                .slideY(begin: 0.1, end: 0),
+
                             const SizedBox(height: 20),
-                            
+
                             // Gender field
                             _buildDropdown(
                               label: 'Gender',
@@ -321,11 +364,15 @@ class _WorkerSignUpStepTwoState extends State<WorkerSignUpStepTwo> {
                                   selectedGender = value;
                                 });
                               },
-                              validator: (value) => _validateDropdown(value, 'Gender'),
-                            ).animate().fadeIn(duration: 500.ms, delay: 100.ms).slideY(begin: 0.1, end: 0),
-                            
+                              validator: (value) =>
+                                  _validateDropdown(value, 'Gender'),
+                            )
+                                .animate()
+                                .fadeIn(duration: 500.ms, delay: 100.ms)
+                                .slideY(begin: 0.1, end: 0),
+
                             const SizedBox(height: 20),
-                            
+
                             // Home Language field
                             _buildDropdown(
                               label: 'Home Language',
@@ -338,11 +385,15 @@ class _WorkerSignUpStepTwoState extends State<WorkerSignUpStepTwo> {
                                   selectedLanguage = value;
                                 });
                               },
-                              validator: (value) => _validateDropdown(value, 'Home Language'),
-                            ).animate().fadeIn(duration: 600.ms, delay: 200.ms).slideY(begin: 0.1, end: 0),
-                            
+                              validator: (value) =>
+                                  _validateDropdown(value, 'Home Language'),
+                            )
+                                .animate()
+                                .fadeIn(duration: 600.ms, delay: 200.ms)
+                                .slideY(begin: 0.1, end: 0),
+
                             const SizedBox(height: 20),
-                            
+
                             // English Proficiency field
                             _buildDropdown(
                               label: 'Proficiency in English',
@@ -355,26 +406,37 @@ class _WorkerSignUpStepTwoState extends State<WorkerSignUpStepTwo> {
                                   selectedProficiency = value;
                                 });
                               },
-                              validator: (value) => _validateDropdown(value, 'Proficiency in English'),
-                            ).animate().fadeIn(duration: 700.ms, delay: 300.ms).slideY(begin: 0.1, end: 0),
-                            
+                              validator: (value) => _validateDropdown(
+                                  value, 'Proficiency in English'),
+                            )
+                                .animate()
+                                .fadeIn(duration: 700.ms, delay: 300.ms)
+                                .slideY(begin: 0.1, end: 0),
+
                             const SizedBox(height: 40),
-                            
+
                             // Next button
                             Center(
-                              child: CommonButton(
-                                customWidth: 160,
-                                buttonText: 'Next',
-                                onTap: _onNextPressed,
-                              ),
+                              child: _isLoading
+                                  ? CircularProgressIndicator(
+                                      color: MyColors().forestGreen,
+                                    )
+                                  : CommonButton(
+                                      customWidth: 160,
+                                      buttonText: 'Next',
+                                      onTap: _onNextPressed,
+                                    ),
                             ).animate().fadeIn(duration: 900.ms, delay: 500.ms),
-                            
+
                             const SizedBox(height: 20),
                           ],
                         ),
                       ),
                     ),
-                  ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.05, end: 0),
+                  )
+                      .animate()
+                      .fadeIn(duration: 400.ms)
+                      .slideY(begin: 0.05, end: 0),
                 ),
               ],
             ),
@@ -383,7 +445,7 @@ class _WorkerSignUpStepTwoState extends State<WorkerSignUpStepTwo> {
       ),
     );
   }
-  
+
   Widget _buildDropdown({
     required String label,
     required String hint,
@@ -415,7 +477,8 @@ class _WorkerSignUpStepTwoState extends State<WorkerSignUpStepTwo> {
             value: value,
             decoration: InputDecoration(
               border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
               prefixIcon: Icon(icon, color: MyColors().forestGreen),
             ),
             hint: Text(

@@ -4,9 +4,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 import '../../Constants/colors.dart';
 import '../../Constants/myutility.dart';
+import '../../services/firebase_service.dart';
+import '../../services/user_provider.dart';
 
 class CreateNewField extends StatefulWidget {
   const CreateNewField({super.key});
@@ -18,6 +25,9 @@ class CreateNewField extends StatefulWidget {
 class _CreateNewFieldState extends State<CreateNewField> {
   final TextEditingController fieldNameController = TextEditingController();
   bool _hasImage = false;
+  File? _imageFile;
+  String? _imagePath = 'images/cropField.png';
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -25,41 +35,116 @@ class _CreateNewFieldState extends State<CreateNewField> {
     super.dispose();
   }
 
-  void _saveField() {
+  Future<void> _pickImage() async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1200,
+        maxHeight: 800,
+        imageQuality: 85,
+      );
+
+      if (image != null) {
+        setState(() {
+          _imageFile = File(image.path);
+          _hasImage = true;
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error picking image: $e')),
+      );
+    }
+  }
+
+  Future<void> _saveField() async {
     if (fieldNameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a field name')),
       );
       return;
     }
-    
-    // Print debug information
-    print('Creating field with name: ${fieldNameController.text}');
-    
-    // Create a Map<String, dynamic> to be compatible with the parent's expectations
-    final field = <String, dynamic>{
-      'name': fieldNameController.text,
-      'image': 'images/cropField.png', // Default image path
-      'portions': [], // Initialize with empty portions list
-      'lastModified': DateTime.now(),
-    };
-    
-    print('Field data: $field');
-    Navigator.pop(context, field);
-    print('Navigated back with field data');
+
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+
+      final currentUser = FirebaseService.currentUser;
+      if (currentUser == null) {
+        throw Exception('User not logged in');
+      }
+
+      // Upload image if selected
+      String imageUrl = 'images/cropField.png'; // Default image
+      if (_imageFile != null) {
+        final userId = currentUser.uid;
+        final storageRef = FirebaseStorage.instance.ref().child(
+            'users/$userId/fields/${DateTime.now().millisecondsSinceEpoch}');
+
+        final uploadTask = storageRef.putFile(_imageFile!);
+        final taskSnapshot = await uploadTask.whenComplete(() => null);
+        imageUrl = await taskSnapshot.ref.getDownloadURL();
+      }
+
+      // Create field document in user's cropFields collection
+      final fieldData = {
+        'name': fieldNameController.text.trim(),
+        'imageUrl': imageUrl,
+        'portions': [],
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+        'createdBy': currentUser.uid,
+      };
+
+      // Add field to user's cropFields collection
+      final fieldDocRef = await FirebaseService.firestore
+          .collection('users')
+          .doc(currentUser.uid)
+          .collection('cropFields')
+          .add(fieldData);
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      // Success message and navigation
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(
+                'Field "${fieldNameController.text}" created successfully')),
+      );
+
+      Navigator.pop(context, {
+        'id': fieldDocRef.id,
+        'name': fieldNameController.text.trim(),
+        'imageUrl': imageUrl,
+        'userId': currentUser.uid,
+        'portions': [],
+        'createdAt': DateTime.now(),
+        'updatedAt': DateTime.now(),
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error creating field: $e')),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final myColors = MyColors();
-    
+
     return Scaffold(
       backgroundColor: myColors.forestGreen,
       body: SafeArea(
         child: Column(
           children: [
             const FgwTopBar(title: 'New Field'),
-            
             Expanded(
               child: Container(
                 width: double.infinity,
@@ -98,14 +183,17 @@ class _CreateNewFieldState extends State<CreateNewField> {
                               Text(
                                 'Create New Field',
                                 style: GoogleFonts.robotoSlab(
-                                  fontSize: 20, 
+                                  fontSize: 20,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ],
                           ),
-                        ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.2, end: 0),
-                        
+                        )
+                            .animate()
+                            .fadeIn(duration: 400.ms)
+                            .slideY(begin: 0.2, end: 0),
+
                         // Field name input
                         Text(
                           'Field Name',
@@ -115,7 +203,7 @@ class _CreateNewFieldState extends State<CreateNewField> {
                           ),
                         ).animate().fadeIn(duration: 400.ms, delay: 100.ms),
                         const SizedBox(height: 8),
-                        
+
                         Container(
                           decoration: BoxDecoration(
                             color: Colors.white,
@@ -139,9 +227,9 @@ class _CreateNewFieldState extends State<CreateNewField> {
                             ),
                           ),
                         ).animate().fadeIn(duration: 400.ms, delay: 200.ms),
-                        
+
                         const SizedBox(height: 24),
-                        
+
                         // Field image section
                         Text(
                           'Field Image (Optional)',
@@ -151,13 +239,9 @@ class _CreateNewFieldState extends State<CreateNewField> {
                           ),
                         ).animate().fadeIn(duration: 400.ms, delay: 300.ms),
                         const SizedBox(height: 8),
-                        
+
                         GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _hasImage = !_hasImage;
-                            });
-                          },
+                          onTap: _pickImage,
                           child: Container(
                             height: 180,
                             width: double.infinity,
@@ -165,34 +249,41 @@ class _CreateNewFieldState extends State<CreateNewField> {
                               color: _hasImage ? null : Colors.grey[100],
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(color: Colors.grey[300]!),
-                              image: _hasImage ? const DecorationImage(
-                                image: AssetImage('images/cropField.png'),
-                                fit: BoxFit.cover,
-                              ) : null,
+                              image: _hasImage
+                                  ? DecorationImage(
+                                      image: _imageFile != null
+                                          ? FileImage(_imageFile!)
+                                              as ImageProvider
+                                          : AssetImage(_imagePath!),
+                                      fit: BoxFit.cover,
+                                    )
+                                  : null,
                             ),
-                            child: _hasImage ? null : Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.add_photo_alternate_outlined,
-                                  size: 48,
-                                  color: Colors.grey[500],
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Tap to add a field image',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.grey[600],
+                            child: _hasImage
+                                ? null
+                                : Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.add_photo_alternate_outlined,
+                                        size: 48,
+                                        color: Colors.grey[500],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Tap to add a field image',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                              ],
-                            ),
                           ),
                         ).animate().fadeIn(duration: 400.ms, delay: 400.ms),
-                        
+
                         const SizedBox(height: 24),
-                        
+
                         // Help text
                         Container(
                           padding: const EdgeInsets.all(16),
@@ -244,41 +335,47 @@ class _CreateNewFieldState extends State<CreateNewField> {
           ],
         ),
         child: SafeArea(
-          child: Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    side: BorderSide(color: myColors.forestGreen),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+          child: _isLoading
+              ? Center(
+                  child: CircularProgressIndicator(
+                    color: myColors.forestGreen,
+                  ),
+                )
+              : Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          side: BorderSide(color: myColors.forestGreen),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: Text(
+                          'Cancel',
+                          style: TextStyle(color: myColors.forestGreen),
+                        ),
+                      ),
                     ),
-                  ),
-                  child: Text(
-                    'Cancel',
-                    style: TextStyle(color: myColors.forestGreen),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: _saveField,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: myColors.forestGreen,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: _saveField,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: myColors.forestGreen,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: const Text('Create Field'),
+                      ),
                     ),
-                  ),
-                  child: const Text('Create Field'),
+                  ],
                 ),
-              ),
-            ],
-          ),
         ),
       ).animate().slideY(begin: 1, end: 0, duration: 400.ms, delay: 600.ms),
     );

@@ -6,9 +6,24 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class TasksListPage extends StatefulWidget {
-  const TasksListPage({Key? key}) : super(key: key);
+  final String? fieldId;
+  final String? portionId;
+  final String? rowNumber;
+  final String? fieldName;
+  final String? portionName;
+
+  const TasksListPage({
+    Key? key,
+    this.fieldId,
+    this.portionId,
+    this.rowNumber,
+    this.fieldName,
+    this.portionName,
+  }) : super(key: key);
 
   @override
   State<TasksListPage> createState() => _TasksListPageState();
@@ -16,74 +31,255 @@ class TasksListPage extends StatefulWidget {
 
 class _TasksListPageState extends State<TasksListPage> {
   final TextEditingController _searchController = TextEditingController();
-  bool _isLoading = false;
+  bool _isLoading = true;
   String _selectedFilter = 'All';
   String _selectedPriority = 'All';
-  
-  // Sample task data - would come from a database in a real app
-  final List<Map<String, dynamic>> _allTasks = [
-    {
-      'title': 'Prepare seedbed using God\'s Way standards',
-      'field': 'North Field',
-      'portion': 'Section A',
-      'dueDate': DateTime.now().add(const Duration(days: 3)),
-      'priority': 'High',
-      'isCompleted': false,
-      'cropType': 'Maize',
-    },
-    {
-      'title': 'Apply compost to bean rows',
-      'field': 'South Field',
-      'portion': 'Section B',
-      'dueDate': DateTime.now().add(const Duration(days: 1)),
-      'priority': 'Medium',
-      'isCompleted': false,
-      'cropType': 'Beans',
-    },
-    {
-      'title': 'Plant vegetable seedlings',
-      'field': 'Garden',
-      'portion': 'Raised Beds',
-      'dueDate': DateTime.now().subtract(const Duration(days: 2)),
-      'priority': 'Medium',
-      'isCompleted': true,
-      'cropType': 'Vegetables',
-    },
-    {
-      'title': 'Weed around fruit trees',
-      'field': 'Orchard',
-      'portion': 'All trees',
-      'dueDate': DateTime.now().add(const Duration(days: 5)),
-      'priority': 'Low',
-      'isCompleted': false,
-      'cropType': 'Fruit Trees',
-    },
-    {
-      'title': 'Harvest mature maize',
-      'field': 'East Field',
-      'portion': 'Whole field',
-      'dueDate': DateTime.now().add(const Duration(days: 14)),
-      'priority': 'High',
-      'isCompleted': false,
-      'cropType': 'Maize',
-    },
-  ];
-  
+
+  // Tasks list
+  List<Map<String, dynamic>> _allTasks = [];
   List<Map<String, dynamic>> _filteredTasks = [];
-  
+
   @override
   void initState() {
     super.initState();
-    _filteredTasks = _allTasks;
+    // Use post-frame callback to avoid scheduler issues
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadTasks();
+    });
     _searchController.addListener(_filterTasks);
   }
-  
+
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
   }
-  
+
+  Future<void> _loadTasks() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        throw Exception('User not logged in');
+      }
+
+      if (widget.rowNumber != null &&
+          widget.portionId != null &&
+          widget.fieldId != null) {
+        // Load row-specific tasks
+        final tasksSnapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(currentUser.uid)
+            .collection('tasks')
+            .where('fieldId', isEqualTo: widget.fieldId)
+            .where('portionId', isEqualTo: widget.portionId)
+            .where('rowNumber', isEqualTo: widget.rowNumber)
+            .get();
+
+        if (tasksSnapshot.docs.isEmpty) {
+          _allTasks = [];
+        } else {
+          _allTasks = tasksSnapshot.docs.map((doc) {
+            final data = doc.data();
+            return {
+              'id': doc.id,
+              'title': data['title'] ?? 'Untitled Task',
+              'field': data['fieldName'] ?? widget.fieldName ?? 'Unknown Field',
+              'portion': data['portionName'] ??
+                  widget.portionName ??
+                  'Unknown Portion',
+              'dueDate':
+                  (data['dueDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
+              'priority': data['priority'] ?? 'Medium',
+              'isCompleted': data['isCompleted'] ?? false,
+              'cropType': data['cropType'] ?? 'Unknown',
+              'fieldId': data['fieldId'] ?? widget.fieldId,
+              'portionId': data['portionId'] ?? widget.portionId,
+              'rowNumber': data['rowNumber'] ?? widget.rowNumber,
+            };
+          }).toList();
+        }
+      } else if (widget.portionId != null && widget.fieldId != null) {
+        // Load portion-specific tasks (all rows)
+        final tasksSnapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(currentUser.uid)
+            .collection('tasks')
+            .where('fieldId', isEqualTo: widget.fieldId)
+            .where('portionId', isEqualTo: widget.portionId)
+            .get();
+
+        if (tasksSnapshot.docs.isEmpty) {
+          _allTasks = [];
+        } else {
+          _allTasks = tasksSnapshot.docs.map((doc) {
+            final data = doc.data();
+            return {
+              'id': doc.id,
+              'title': data['title'] ?? 'Untitled Task',
+              'field': data['fieldName'] ?? widget.fieldName ?? 'Unknown Field',
+              'portion': data['portionName'] ??
+                  widget.portionName ??
+                  'Unknown Portion',
+              'dueDate':
+                  (data['dueDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
+              'priority': data['priority'] ?? 'Medium',
+              'isCompleted': data['isCompleted'] ?? false,
+              'cropType': data['cropType'] ?? 'Unknown',
+              'fieldId': data['fieldId'] ?? widget.fieldId,
+              'portionId': data['portionId'] ?? widget.portionId,
+              'rowNumber': data['rowNumber'],
+            };
+          }).toList();
+        }
+      } else if (widget.fieldId != null) {
+        // Load field-specific tasks
+        final tasksSnapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(currentUser.uid)
+            .collection('tasks')
+            .where('fieldId', isEqualTo: widget.fieldId)
+            .get();
+
+        if (tasksSnapshot.docs.isEmpty) {
+          _allTasks = [];
+        } else {
+          _allTasks = tasksSnapshot.docs.map((doc) {
+            final data = doc.data();
+            return {
+              'id': doc.id,
+              'title': data['title'] ?? 'Untitled Task',
+              'field': data['fieldName'] ?? widget.fieldName ?? 'Unknown Field',
+              'portion': data['portionName'] ?? 'Unknown Portion',
+              'dueDate':
+                  (data['dueDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
+              'priority': data['priority'] ?? 'Medium',
+              'isCompleted': data['isCompleted'] ?? false,
+              'cropType': data['cropType'] ?? 'Unknown',
+              'fieldId': data['fieldId'] ?? widget.fieldId,
+              'portionId': data['portionId'],
+              'rowNumber': data['rowNumber'],
+            };
+          }).toList();
+        }
+      } else {
+        // Load all user tasks
+        final tasksSnapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(currentUser.uid)
+            .collection('tasks')
+            .get();
+
+        if (tasksSnapshot.docs.isEmpty) {
+          _allTasks = _getSampleTasks();
+        } else {
+          _allTasks = tasksSnapshot.docs.map((doc) {
+            final data = doc.data();
+            return {
+              'id': doc.id,
+              'title': data['title'] ?? 'Untitled Task',
+              'field': data['fieldName'] ?? 'Unknown Field',
+              'portion': data['portionName'] ?? 'Unknown Portion',
+              'dueDate':
+                  (data['dueDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
+              'priority': data['priority'] ?? 'Medium',
+              'isCompleted': data['isCompleted'] ?? false,
+              'cropType': data['cropType'] ?? 'Unknown',
+              'fieldId': data['fieldId'],
+              'portionId': data['portionId'],
+              'rowNumber': data['rowNumber'],
+            };
+          }).toList();
+        }
+      }
+
+      setState(() {
+        _filteredTasks = _allTasks;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error loading tasks: $e');
+      setState(() {
+        // Use sample tasks if there's an error
+        _allTasks = _getSampleTasks();
+        _filteredTasks = _allTasks;
+        _isLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error loading tasks: $e'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // Sample tasks for demonstration
+  List<Map<String, dynamic>> _getSampleTasks() {
+    return [
+      {
+        'id': '1',
+        'title': 'Prepare seedbed using God\'s Way standards',
+        'field': 'North Field',
+        'portion': 'Section A',
+        'dueDate': DateTime.now().add(const Duration(days: 3)),
+        'priority': 'High',
+        'isCompleted': false,
+        'cropType': 'Maize',
+        'rowNumber': widget.rowNumber ?? 'Row 1',
+      },
+      {
+        'id': '2',
+        'title': 'Apply compost to bean rows',
+        'field': 'South Field',
+        'portion': 'Section B',
+        'dueDate': DateTime.now().add(const Duration(days: 1)),
+        'priority': 'Medium',
+        'isCompleted': false,
+        'cropType': 'Beans',
+        'rowNumber': widget.rowNumber ?? 'Row 2',
+      },
+      {
+        'id': '3',
+        'title': 'Plant vegetable seedlings',
+        'field': 'Garden',
+        'portion': 'Raised Beds',
+        'dueDate': DateTime.now().subtract(const Duration(days: 2)),
+        'priority': 'Medium',
+        'isCompleted': true,
+        'cropType': 'Vegetables',
+        'rowNumber': widget.rowNumber ?? 'Row 1',
+      },
+      {
+        'id': '4',
+        'title': 'Weed around fruit trees',
+        'field': 'Orchard',
+        'portion': 'All trees',
+        'dueDate': DateTime.now().add(const Duration(days: 5)),
+        'priority': 'Low',
+        'isCompleted': false,
+        'cropType': 'Fruit Trees',
+        'rowNumber': widget.rowNumber ?? 'Row 3',
+      },
+      {
+        'id': '5',
+        'title': 'Harvest mature maize',
+        'field': 'East Field',
+        'portion': 'Whole field',
+        'dueDate': DateTime.now().add(const Duration(days: 14)),
+        'priority': 'High',
+        'isCompleted': false,
+        'cropType': 'Maize',
+        'rowNumber': widget.rowNumber ?? 'Row 2',
+      },
+    ];
+  }
+
   void _filterTasks() {
     setState(() {
       final query = _searchController.text.toLowerCase();
@@ -93,8 +289,10 @@ class _TasksListPageState extends State<TasksListPage> {
             task['title'].toLowerCase().contains(query) ||
             task['field'].toLowerCase().contains(query) ||
             task['portion'].toLowerCase().contains(query) ||
-            task['cropType'].toLowerCase().contains(query);
-        
+            task['cropType'].toLowerCase().contains(query) ||
+            (task['rowNumber'] != null &&
+                task['rowNumber'].toLowerCase().contains(query));
+
         // Apply completion filter
         bool matchesStatus = true;
         if (_selectedFilter == 'Completed') {
@@ -102,51 +300,148 @@ class _TasksListPageState extends State<TasksListPage> {
         } else if (_selectedFilter == 'Outstanding') {
           matchesStatus = task['isCompleted'] == false;
         }
-        
+
         // Apply priority filter
         bool matchesPriority = true;
         if (_selectedPriority != 'All') {
           matchesPriority = task['priority'] == _selectedPriority;
         }
-        
+
         return matchesQuery && matchesStatus && matchesPriority;
       }).toList();
     });
   }
-  
-  Widget _buildFilterChip(String label, String currentFilter, Function(String) onSelected) {
+
+  Widget _buildFilterChip(
+      String label, String selectedValue, Function(String) onSelected) {
     final myColors = MyColors();
-    final isSelected = currentFilter == label;
-    
+    final isSelected = label == selectedValue;
+
     return Padding(
-      padding: const EdgeInsets.only(right: 8.0),
-      child: FilterChip(
-        selected: isSelected,
+      padding: const EdgeInsets.only(right: 8),
+      child: ChoiceChip(
         label: Text(label),
+        selected: isSelected,
+        onSelected: (selected) {
+          if (selected) {
+            onSelected(label);
+            _filterTasks();
+          }
+        },
+        backgroundColor: Colors.grey[100],
+        selectedColor: myColors.lightGreen.withOpacity(0.2),
         labelStyle: TextStyle(
-          color: isSelected ? Colors.white : Colors.black87,
+          color: isSelected ? myColors.forestGreen : Colors.grey[700],
           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
         ),
-        backgroundColor: Colors.white,
-        selectedColor: myColors.forestGreen,
-        checkmarkColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: BorderSide(
-            color: isSelected ? myColors.forestGreen : Colors.grey.shade300,
-          ),
-        ),
-        onSelected: (selected) {
-          onSelected(label);
-          _filterTasks();
-        },
       ),
-    ).animate().fadeIn(duration: 300.ms).slideX(begin: 0.05, end: 0, duration: 300.ms);
+    );
   }
-  
+
+  Future<void> _updateTaskStatus(String taskId, bool isCompleted) async {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        throw Exception('User not logged in');
+      }
+
+      // Update task completion status
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .collection('tasks')
+          .doc(taskId)
+          .update({'isCompleted': isCompleted});
+
+      // Now update the row progress if we have a specific row
+      if (widget.portionId != null &&
+          widget.rowNumber != null &&
+          widget.fieldId != null) {
+        // Find the field document containing this portion
+        final fieldDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(currentUser.uid)
+            .collection('cropFields')
+            .doc(widget.fieldId)
+            .get();
+
+        if (fieldDoc.exists) {
+          // Get the portion document
+          final portionDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(currentUser.uid)
+              .collection('cropFields')
+              .doc(widget.fieldId)
+              .collection('portions')
+              .doc(widget.portionId)
+              .get();
+
+          if (portionDoc.exists) {
+            final portionData = portionDoc.data();
+            if (portionData != null && portionData['rows'] != null) {
+              List<dynamic> rows = portionData['rows'];
+
+              // Find the specific row
+              for (int i = 0; i < rows.length; i++) {
+                if (rows[i]['rowNumber'] == widget.rowNumber) {
+                  // Get tasks for this row to recalculate progress
+                  final tasksQuery = await FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(currentUser.uid)
+                      .collection('tasks')
+                      .where('fieldId', isEqualTo: widget.fieldId)
+                      .where('portionId', isEqualTo: widget.portionId)
+                      .where('rowNumber', isEqualTo: widget.rowNumber)
+                      .get();
+
+                  final tasks = tasksQuery.docs;
+                  final totalTasks = tasks.length;
+                  final completedTasks = tasks
+                      .where((task) =>
+                          (task.data()['isCompleted'] ?? false) == true)
+                      .length;
+
+                  // Calculate new progress
+                  final progressValue =
+                      totalTasks > 0 ? completedTasks / totalTasks : 0.0;
+
+                  // Update the row's progress
+                  rows[i]['progressValue'] = progressValue;
+                  rows[i]['tasksCompleted'] = completedTasks;
+                  rows[i]['totalTasks'] = totalTasks;
+
+                  // Update the portion document
+                  await FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(currentUser.uid)
+                      .collection('cropFields')
+                      .doc(widget.fieldId)
+                      .collection('portions')
+                      .doc(widget.portionId)
+                      .update({'rows': rows});
+
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      print('Error updating task status: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error updating task: $e'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   Widget _buildEmptyState() {
     final myColors = MyColors();
-    
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -167,7 +462,9 @@ class _TasksListPageState extends State<TasksListPage> {
           ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.2, end: 0),
           const SizedBox(height: 12),
           Text(
-            'Try changing your filters or search term',
+            widget.rowNumber != null
+                ? 'No tasks for ${widget.rowNumber}'
+                : 'Try changing your filters or search term',
             style: GoogleFonts.roboto(
               fontSize: 14,
               color: Colors.grey[500],
@@ -195,16 +492,29 @@ class _TasksListPageState extends State<TasksListPage> {
               ),
               side: BorderSide(color: myColors.forestGreen),
             ),
-          ).animate().fadeIn(duration: 400.ms, delay: 300.ms).slideY(begin: 0.2, end: 0),
+          )
+              .animate()
+              .fadeIn(duration: 400.ms, delay: 300.ms)
+              .slideY(begin: 0.2, end: 0),
         ],
       ),
     );
   }
-  
+
   @override
   Widget build(BuildContext context) {
     final myColors = MyColors();
-    
+
+    // Customize page title based on the context
+    String pageTitle = 'Tasks';
+    if (widget.rowNumber != null) {
+      pageTitle = widget.rowNumber!;
+    } else if (widget.portionName != null) {
+      pageTitle = widget.portionName!;
+    } else if (widget.fieldName != null) {
+      pageTitle = widget.fieldName!;
+    }
+
     return Scaffold(
       backgroundColor: Colors.grey[50],
       body: SafeArea(
@@ -212,9 +522,9 @@ class _TasksListPageState extends State<TasksListPage> {
           children: [
             // Top Bar
             FgwTopBar(
-              title: 'Tasks',
+              title: pageTitle,
             ),
-            
+
             // Search bar with rounded design
             Container(
               margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
@@ -235,17 +545,18 @@ class _TasksListPageState extends State<TasksListPage> {
                   hintText: 'Search tasks...',
                   prefixIcon: Icon(Icons.search, color: myColors.forestGreen),
                   border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 15, horizontal: 16),
+                  contentPadding:
+                      const EdgeInsets.symmetric(vertical: 15, horizontal: 16),
                 ),
               ),
             ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
-            
+
             // Filter section with divider
             Container(
-              margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              margin: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(15),
+                borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.05),
@@ -254,127 +565,121 @@ class _TasksListPageState extends State<TasksListPage> {
                   ),
                 ],
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Header with reset button
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Filter Tasks',
-                          style: GoogleFonts.robotoSlab(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        TextButton.icon(
-                          onPressed: () {
-                            // Reset all filters
-                            setState(() {
-                              _searchController.clear();
-                              _selectedFilter = 'All';
-                              _selectedPriority = 'All';
-                              _filteredTasks = _allTasks;
-                            });
-                          },
-                          icon: const Icon(Icons.refresh, size: 16),
-                          label: const Text('Reset'),
-                          style: TextButton.styleFrom(
-                            foregroundColor: myColors.forestGreen,
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                          ),
-                        ),
-                      ],
-                    ),
-                    
-                    const Divider(),
-                    
-                    // Status filter
-                    Row(
-                      children: [
-                        FaIcon(
-                          FontAwesomeIcons.clipboardCheck,
-                          size: 14,
-                          color: myColors.forestGreen,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Status:',
-                          style: GoogleFonts.roboto(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.grey[700],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          _buildFilterChip('All', _selectedFilter, (filter) {
-                            setState(() => _selectedFilter = filter);
-                          }),
-                          _buildFilterChip('Outstanding', _selectedFilter, (filter) {
-                            setState(() => _selectedFilter = filter);
-                          }),
-                          _buildFilterChip('Completed', _selectedFilter, (filter) {
-                            setState(() => _selectedFilter = filter);
-                          }),
-                        ],
-                      ),
-                    ),
-                    
-                    const SizedBox(height: 16),
-                    
-                    // Priority filter
-                    Row(
-                      children: [
-                        FaIcon(
-                          FontAwesomeIcons.flag,
-                          size: 14,
-                          color: myColors.forestGreen,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Priority:',
-                          style: GoogleFonts.roboto(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.grey[700],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          _buildFilterChip('All', _selectedPriority, (filter) {
-                            setState(() => _selectedPriority = filter);
-                          }),
-                          _buildFilterChip('High', _selectedPriority, (filter) {
-                            setState(() => _selectedPriority = filter);
-                          }),
-                          _buildFilterChip('Medium', _selectedPriority, (filter) {
-                            setState(() => _selectedPriority = filter);
-                          }),
-                          _buildFilterChip('Low', _selectedPriority, (filter) {
-                            setState(() => _selectedPriority = filter);
-                          }),
-                        ],
-                      ),
-                    ),
-                  ],
+              child: ExpansionTile(
+                title: Text(
+                  'Filters',
+                  style: GoogleFonts.robotoSlab(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: myColors.forestGreen,
+                  ),
                 ),
+                leading: Icon(
+                  Icons.filter_list,
+                  color: myColors.forestGreen,
+                ),
+                iconColor: myColors.forestGreen,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Status filter
+                        Row(
+                          children: [
+                            FaIcon(
+                              FontAwesomeIcons.clipboardCheck,
+                              size: 14,
+                              color: myColors.forestGreen,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Status:',
+                              style: GoogleFonts.roboto(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.grey[700],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              _buildFilterChip('All', _selectedFilter,
+                                  (filter) {
+                                setState(() => _selectedFilter = filter);
+                              }),
+                              _buildFilterChip('Outstanding', _selectedFilter,
+                                  (filter) {
+                                setState(() => _selectedFilter = filter);
+                              }),
+                              _buildFilterChip('Completed', _selectedFilter,
+                                  (filter) {
+                                setState(() => _selectedFilter = filter);
+                              }),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Priority filter
+                        Row(
+                          children: [
+                            FaIcon(
+                              FontAwesomeIcons.flag,
+                              size: 14,
+                              color: myColors.forestGreen,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Priority:',
+                              style: GoogleFonts.roboto(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.grey[700],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              _buildFilterChip('All', _selectedPriority,
+                                  (filter) {
+                                setState(() => _selectedPriority = filter);
+                              }),
+                              _buildFilterChip('High', _selectedPriority,
+                                  (filter) {
+                                setState(() => _selectedPriority = filter);
+                              }),
+                              _buildFilterChip('Medium', _selectedPriority,
+                                  (filter) {
+                                setState(() => _selectedPriority = filter);
+                              }),
+                              _buildFilterChip('Low', _selectedPriority,
+                                  (filter) {
+                                setState(() => _selectedPriority = filter);
+                              }),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ).animate().fadeIn(duration: 400.ms, delay: 100.ms).slideY(begin: 0.1, end: 0),
-            
+            )
+                .animate()
+                .fadeIn(duration: 400.ms, delay: 100.ms)
+                .slideY(begin: 0.1, end: 0),
+
             // Task count with subtle container
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -406,7 +711,7 @@ class _TasksListPageState extends State<TasksListPage> {
                 ],
               ),
             ).animate().fadeIn(duration: 400.ms, delay: 200.ms),
-            
+
             // Task list with animation
             Expanded(
               child: _isLoading
@@ -421,31 +726,45 @@ class _TasksListPageState extends State<TasksListPage> {
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 16),
                               child: TaskItem(
-                                title: task['title'],
-                                field: task['field'],
-                                portion: task['portion'],
-                                dueDate: task['dueDate'],
-                                priority: task['priority'],
-                                isCompleted: task['isCompleted'],
-                                cropType: task['cropType'],
-                                onStatusChanged: (isCompleted) {
+                                title: task['title'] ?? 'Untitled Task',
+                                field: task['field'] ?? 'Unknown Field',
+                                portion: task['portion'] ?? 'Unknown Portion',
+                                rowNumber: task['rowNumber'] ?? '',
+                                dueDate: task['dueDate'] is Timestamp
+                                    ? (task['dueDate'] as Timestamp).toDate()
+                                    : (task['dueDate'] as DateTime),
+                                priority: task['priority'] ?? 'Medium',
+                                isCompleted: task['isCompleted'] ?? false,
+                                taskId: task['id'] ?? '',
+                                cropType: task['cropType'] ?? '',
+                                onStatusChanged: (isCompleted) async {
+                                  // First update the UI
                                   setState(() {
                                     // Update the task status in both lists
                                     task['isCompleted'] = isCompleted;
-                                    
+
                                     // Find and update in the original list too
                                     final originalTask = _allTasks.firstWhere(
-                                      (t) => t['title'] == task['title'],
+                                      (t) => t['id'] == task['id'],
                                       orElse: () => task,
                                     );
                                     originalTask['isCompleted'] = isCompleted;
-                                    
-                                    // Reapply filters in case completion status matters
-                                    _filterTasks();
                                   });
+
+                                  // Then update Firestore if we have a valid task ID
+                                  if (task['id'] != null) {
+                                    await _updateTaskStatus(
+                                        task['id'], isCompleted);
+                                  }
+
+                                  // Reapply filters in case completion status matters
+                                  _filterTasks();
                                 },
                               ),
-                            ).animate().fadeIn(duration: 400.ms, delay: 50.ms * index).slideY(begin: 0.1, end: 0);
+                            )
+                                .animate()
+                                .fadeIn(duration: 400.ms, delay: 50.ms * index)
+                                .slideY(begin: 0.1, end: 0);
                           },
                         ),
             ),
@@ -457,15 +776,23 @@ class _TasksListPageState extends State<TasksListPage> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => const TaskCreateFieldSelect(),
+              builder: (context) => TaskCreateFieldSelect(
+                preSelectedFieldId: widget.fieldId,
+                preSelectedPortionId: widget.portionId,
+                preSelectedFieldName: widget.fieldName,
+                preSelectedPortionName: widget.portionName,
+                preSelectedRowNumber: widget.rowNumber,
+              ),
             ),
-          );
+          ).then((_) => _loadTasks()); // Reload tasks when returning
         },
         backgroundColor: myColors.forestGreen,
         icon: const Icon(Icons.add),
         label: const Text("New Task"),
         elevation: 4,
-      ).animate().scale(delay: 300.ms, duration: 400.ms, curve: Curves.elasticOut),
+      )
+          .animate()
+          .scale(delay: 300.ms, duration: 400.ms, curve: Curves.elasticOut),
     );
   }
 }

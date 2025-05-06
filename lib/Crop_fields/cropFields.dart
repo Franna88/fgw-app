@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 import '../CommonUi/Buttons/commonButton.dart';
 import '../CommonUi/FGW_Top_Bar/fgwTopBar.dart';
@@ -20,18 +23,20 @@ class CropFields extends StatefulWidget {
   State<CropFields> createState() => _CropFieldsState();
 }
 
-class _CropFieldsState extends State<CropFields> with SingleTickerProviderStateMixin {
+class _CropFieldsState extends State<CropFields>
+    with SingleTickerProviderStateMixin {
   List<Map<String, dynamic>> fields = [];
   bool _isLoading = true;
+  String? _error;
   late AnimationController _fabController;
-  
+
   // Sample field images for demonstration
   final List<String> _fieldImages = [
     'images/cropField.png',
     'images/cropField.png',
     'images/cropField.png',
   ];
-  
+
   @override
   void initState() {
     super.initState();
@@ -39,18 +44,55 @@ class _CropFieldsState extends State<CropFields> with SingleTickerProviderStateM
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
-    
-    // Simulate loading data (in a real app, this would come from a database)
-    Future.delayed(const Duration(milliseconds: 800), () {
-      if (mounted) {
+    _loadFields();
+  }
+
+  Future<void> _loadFields() async {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
         setState(() {
+          _error = 'User not logged in';
           _isLoading = false;
         });
-        _fabController.forward();
+        return;
       }
-    });
+
+      // Get fields directly from the user's collection
+      final fieldsQuery = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .collection('cropFields')
+          .get();
+
+      final List<Map<String, dynamic>> loadedFields = [];
+      for (var doc in fieldsQuery.docs) {
+        final data = doc.data();
+        loadedFields.add({
+          'id': doc.id,
+          'name': data['name'] ?? 'Unnamed Field',
+          'imageUrl': data['imageUrl'] ?? 'images/cropField.png',
+          'userId': currentUser.uid, // Add user ID to each field
+          'portions': data['portions'] ?? [],
+          'createdAt': data['createdAt'],
+          'updatedAt': data['updatedAt'],
+        });
+      }
+
+      setState(() {
+        fields = loadedFields;
+        _isLoading = false;
+        _error = null;
+      });
+      _fabController.forward();
+    } catch (e) {
+      setState(() {
+        _error = 'Error loading fields: $e';
+        _isLoading = false;
+      });
+    }
   }
-  
+
   @override
   void dispose() {
     _fabController.dispose();
@@ -58,101 +100,84 @@ class _CropFieldsState extends State<CropFields> with SingleTickerProviderStateM
   }
 
   void _navigateToCreateField() async {
-    print('Navigating to create field screen');
     final newField = await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const CreateNewField()),
     );
 
-    print('Returned from create field screen with data: $newField');
     if (newField != null && mounted) {
-      print('Adding new field to list');
       setState(() {
-        // Field already includes portions and lastModified from the CreateNewField
-        fields.add(newField);
+        fields.insert(
+            0, newField); // Add new field at the beginning of the list
       });
-      
-      // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${newField['name']} created successfully')),
-      );
-      print('Field added successfully: ${fields.length} fields total');
-    } else {
-      print('Field creation cancelled or component unmounted');
+      await _loadFields(); // Still reload to ensure data consistency
     }
   }
 
   void _navigateToFieldView(Map<String, dynamic> field) {
-    // Convert to Map<String, String> since that's what CropFieldView expects
-    final convertedField = <String, String>{
-      'name': field['name'] as String,
-      'image': field['image'] as String,
-    };
-    
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => CropFieldView(field: convertedField),
+        builder: (context) => CropFieldView(field: field),
       ),
     ).then((result) {
-      // Handle any updates when returning from field view
       if (result != null && result['updated'] == true && mounted) {
-        setState(() {
-          // Refresh the fields list
-          final index = fields.indexWhere((f) => f['name'] == result['name']);
-          if (index != -1) {
-            fields[index] = result;
-          }
-        });
+        _loadFields(); // Reload fields after updates
       }
     });
   }
-  
-  void _deleteField(int index) {
-    final fieldName = fields[index]['name'];
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Delete Field'),
-        content: Text('Are you sure you want to delete "$fieldName"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              setState(() {
-                fields.removeAt(index);
-              });
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('$fieldName deleted')),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: Text('Delete'),
-          ),
-        ],
-      ),
-    );
+
+  Future<void> _deleteField(Map<String, dynamic> field) async {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('User not logged in')),
+        );
+        return;
+      }
+
+      // Delete field image from storage if it's not the default image
+      if (field['imageUrl'] != 'images/cropField.png') {
+        final ref = FirebaseStorage.instance.refFromURL(field['imageUrl']);
+        await ref.delete();
+      }
+
+      // Delete field document from user's collection
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .collection('cropFields')
+          .doc(field['id'])
+          .delete();
+
+      if (mounted) {
+        await _loadFields(); // Reload fields after deletion
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${field['name']} deleted successfully')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error deleting field: $e')),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final myColors = MyColors();
-    
+    final myUtility = MyUtility(context);
+
     return Scaffold(
       backgroundColor: myColors.forestGreen,
       body: SafeArea(
         child: Column(
           children: [
             const FgwTopBar(title: 'Crop Fields'),
-            
+
             // Action buttons
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -198,7 +223,8 @@ class _CropFieldsState extends State<CropFields> with SingleTickerProviderStateM
                       onPressed: () {
                         // Filter functionality
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Filter options coming soon')),
+                          const SnackBar(
+                              content: Text('Filter options coming soon')),
                         );
                       },
                     ),
@@ -206,13 +232,14 @@ class _CropFieldsState extends State<CropFields> with SingleTickerProviderStateM
                 ],
               ),
             ),
-            
+
             // Content area
             Expanded(
               child: Container(
                 width: double.infinity,
+                margin: const EdgeInsets.only(top: 16),
                 decoration: BoxDecoration(
-                  color: Colors.grey[50],
+                  color: Colors.white,
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(24),
                     topRight: Radius.circular(24),
@@ -227,265 +254,184 @@ class _CropFieldsState extends State<CropFields> with SingleTickerProviderStateM
                 ),
                 child: _isLoading
                     ? const Center(child: CircularProgressIndicator())
-                    : fields.isEmpty
-                        ? _buildEmptyState()
-                        : ListView.builder(
-                            padding: const EdgeInsets.all(16),
-                            itemCount: fields.length,
-                            itemBuilder: (context, index) {
-                              final field = fields[index];
-                              
-                              // Add some visual info for each field
-                              final portions = field['portions'] ?? [];
-                              final portionCount = portions.length;
-                              final lastModified = field['lastModified'] ?? DateTime.now();
-                              
-                              // Use animate extension method directly on widget
-                              return Dismissible(
-                                key: Key(field['name']),
-                                direction: DismissDirection.endToStart,
-                                background: Container(
-                                  alignment: Alignment.centerRight,
-                                  padding: const EdgeInsets.only(right: 20),
-                                  decoration: BoxDecoration(
-                                    color: Colors.red[400],
-                                    borderRadius: BorderRadius.circular(12),
+                    : _error != null
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  _error!,
+                                  style: GoogleFonts.roboto(
+                                    fontSize: 16,
+                                    color: Colors.red,
                                   ),
-                                  child: const Icon(
-                                    Icons.delete_outline,
-                                    color: Colors.white,
-                                    size: 28,
-                                  ),
+                                  textAlign: TextAlign.center,
                                 ),
-                                onDismissed: (direction) {
-                                  _deleteField(index);
-                                },
-                                confirmDismiss: (direction) async {
-                                  bool delete = false;
-                                  await showDialog(
-                                    context: context,
-                                    builder: (context) => AlertDialog(
-                                      title: Text('Delete Field'),
-                                      content: Text('Are you sure you want to delete "${field['name']}"?'),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () => Navigator.pop(context),
-                                          child: Text('Cancel'),
-                                        ),
-                                        ElevatedButton(
-                                          onPressed: () {
-                                            delete = true;
-                                            Navigator.pop(context);
-                                          },
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.red,
-                                            foregroundColor: Colors.white,
-                                          ),
-                                          child: Text('Delete'),
-                                        ),
-                                      ],
+                                const SizedBox(height: 16),
+                                ElevatedButton(
+                                  onPressed: _loadFields,
+                                  child: const Text('Retry'),
+                                ),
+                              ],
+                            ),
+                          )
+                        : fields.isEmpty
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      FontAwesomeIcons.tractor,
+                                      size: 64,
+                                      color:
+                                          myColors.forestGreen.withOpacity(0.5),
                                     ),
-                                  );
-                                  return delete;
-                                },
-                                child: Padding(
-                                  padding: const EdgeInsets.only(bottom: 16),
-                                  child: ModernCard(
-                                    onTap: () => _navigateToFieldView(field),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        // Field header
-                                        Row(
-                                          children: [
-                                            // Field image or icon
-                                            Container(
-                                              height: 70,
-                                              width: 70,
-                                              decoration: BoxDecoration(
-                                                color: myColors.lightGreen.withOpacity(0.2),
-                                                borderRadius: BorderRadius.circular(12),
-                                                image: DecorationImage(
-                                                  image: AssetImage(field['image']!),
-                                                  fit: BoxFit.cover,
-                                                ),
-                                              ),
-                                            ),
-                                            
-                                            const SizedBox(width: 16),
-                                            
-                                            // Field details
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    field['name']!,
-                                                    style: GoogleFonts.robotoSlab(
-                                                      fontWeight: FontWeight.bold,
-                                                      fontSize: 16,
-                                                    ),
-                                                  ),
-                                                  const SizedBox(height: 4),
-                                                  Row(
-                                                    children: [
-                                                      Icon(
-                                                        Icons.scatter_plot,
-                                                        size: 14,
-                                                        color: Colors.grey[600],
-                                                      ),
-                                                      const SizedBox(width: 4),
-                                                      Text(
-                                                        portionCount > 0
-                                                            ? '$portionCount Portions'
-                                                            : 'No portions added yet',
-                                                        style: TextStyle(
-                                                          color: Colors.grey[600],
-                                                          fontSize: 12,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                            
-                                            // Arrow icon
-                                            Container(
-                                              height: 32,
-                                              width: 32,
-                                              decoration: BoxDecoration(
-                                                color: myColors.lightGreen.withOpacity(0.1),
-                                                borderRadius: BorderRadius.circular(16),
-                                              ),
-                                              child: Icon(
-                                                Icons.arrow_forward_ios,
-                                                size: 14,
-                                                color: myColors.forestGreen,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        
-                                        if (portionCount > 0) ...[
-                                          const SizedBox(height: 12),
-                                          const Divider(),
-                                          const SizedBox(height: 8),
-                                          
-                                          // Portions summary
-                                          Text(
-                                            'Portions',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.w500,
-                                              color: Colors.grey[700],
-                                              fontSize: 14,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            'Tap to view and manage portions of this field',
-                                            style: TextStyle(
-                                              color: Colors.grey[600],
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                        ],
-                                      ],
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      'No fields found',
+                                      style: GoogleFonts.roboto(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w500,
+                                        color: Colors.grey[600],
+                                      ),
                                     ),
-                                  ),
-                                ).animate(
-                                  delay: Duration(milliseconds: 50 * index),
-                                  effects: [
-                                    FadeEffect(duration: Duration(milliseconds: 400)),
-                                    SlideEffect(
-                                      begin: Offset(0, 0.2), 
-                                      end: Offset.zero,
-                                      duration: Duration(milliseconds: 400),
-                                      curve: Curves.easeOutQuad,
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Create your first field to get started',
+                                      style: GoogleFonts.roboto(
+                                        fontSize: 14,
+                                        color: Colors.grey[500],
+                                      ),
                                     ),
                                   ],
                                 ),
-                              );
-                            },
-                          ),
+                              )
+                            : ListView.builder(
+                                padding: const EdgeInsets.all(16),
+                                itemCount: fields.length,
+                                itemBuilder: (context, index) {
+                                  final field = fields[index];
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 16),
+                                    child: ModernCard(
+                                      onTap: () => _navigateToFieldView(field),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Container(
+                                                height: 70,
+                                                width: 70,
+                                                decoration: BoxDecoration(
+                                                  color: myColors.lightGreen
+                                                      .withOpacity(0.2),
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                  image: DecorationImage(
+                                                    image: field['imageUrl']
+                                                            .startsWith('http')
+                                                        ? NetworkImage(
+                                                            field['imageUrl'])
+                                                        : AssetImage(field[
+                                                                'imageUrl'])
+                                                            as ImageProvider,
+                                                    fit: BoxFit.cover,
+                                                    onError: (exception,
+                                                        stackTrace) {
+                                                      // Handle image loading error
+                                                      debugPrint(
+                                                          'Error loading image: $exception');
+                                                    },
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 16),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      field['name'],
+                                                      style: GoogleFonts.roboto(
+                                                        fontSize: 18,
+                                                        fontWeight:
+                                                            FontWeight.w500,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 4),
+                                                    Text(
+                                                      '${field['portions'].length} portions',
+                                                      style: GoogleFonts.roboto(
+                                                        fontSize: 14,
+                                                        color: Colors.grey[600],
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              IconButton(
+                                                icon: const Icon(
+                                                    Icons.delete_outline),
+                                                color: Colors.red,
+                                                onPressed: () {
+                                                  showDialog(
+                                                    context: context,
+                                                    builder: (context) =>
+                                                        AlertDialog(
+                                                      title: const Text(
+                                                          'Delete Field'),
+                                                      content: Text(
+                                                          'Are you sure you want to delete "${field['name']}"?'),
+                                                      actions: [
+                                                        TextButton(
+                                                          onPressed: () =>
+                                                              Navigator.pop(
+                                                                  context),
+                                                          child: const Text(
+                                                              'Cancel'),
+                                                        ),
+                                                        ElevatedButton(
+                                                          onPressed: () {
+                                                            Navigator.pop(
+                                                                context);
+                                                            _deleteField(field);
+                                                          },
+                                                          style: ElevatedButton
+                                                              .styleFrom(
+                                                            backgroundColor:
+                                                                Colors.red,
+                                                            foregroundColor:
+                                                                Colors.white,
+                                                          ),
+                                                          child: const Text(
+                                                              'Delete'),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  );
+                                                },
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
               ),
             ),
           ],
         ),
       ),
-      floatingActionButton: fields.isNotEmpty 
-        ? ScaleTransition(
-            scale: _fabController,
-            child: FloatingActionButton.extended(
-              backgroundColor: myColors.lightGreen,
-              onPressed: _navigateToCreateField,
-              icon: const Icon(Icons.add, color: Colors.white),
-              label: const Text('Add Field', style: TextStyle(color: Colors.white)),
-            ),
-          )
-        : null,
-    );
-  }
-  
-  Widget _buildEmptyState() {
-    // Create widget first, then apply animations
-    print('Building empty state widget');
-    final myColors = MyColors();
-    
-    Widget content = Padding(
-      padding: const EdgeInsets.all(32.0),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          FaIcon(
-            FontAwesomeIcons.seedling,
-            size: 64,
-            color: Colors.grey[400],
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'No Fields Yet',
-            style: GoogleFonts.robotoSlab(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[800],
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Add your first field to start managing your crops',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey[600],
-            ),
-          ),
-          const SizedBox(height: 32),
-          ElevatedButton.icon(
-            onPressed: () {
-              print('Add First Field button pressed');
-              _navigateToCreateField();
-            },
-            icon: const Icon(Icons.add),
-            label: const Text('Add First Field'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: myColors.forestGreen,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-    
-    // Apply animations and return
-    return Center(
-      child: content.animate()
-        .fadeIn(duration: 600.ms)
-        .moveY(begin: 10, end: 0, duration: 600.ms, curve: Curves.easeOutQuad),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _navigateToCreateField,
+        backgroundColor: myColors.forestGreen,
+        child: const Icon(FontAwesomeIcons.plus, color: Colors.white),
+      ).animate(controller: _fabController).scale(),
     );
   }
 }

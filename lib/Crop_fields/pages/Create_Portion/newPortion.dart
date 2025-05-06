@@ -17,22 +17,22 @@ class _NewPortionState extends State<NewPortion> {
   final TextEditingController _portionNameController = TextEditingController();
   final TextEditingController _rowLengthController = TextEditingController();
   String? _selectedPortionType;
-  
+
   final List<String> _portionTypes = [
-    'Leaf type', 
-    'Root type', 
+    'Leaf type',
+    'Root type',
     'Fruit type',
     'Grain type',
     'Mixed type',
   ];
-  
+
   @override
   void dispose() {
     _portionNameController.dispose();
     _rowLengthController.dispose();
     super.dispose();
   }
-  
+
   bool _validateInputs() {
     if (_portionNameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -40,30 +40,32 @@ class _NewPortionState extends State<NewPortion> {
       );
       return false;
     }
-    
+
     if (_rowLengthController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a row length')),
       );
       return false;
     }
-    
+
     if (_selectedPortionType == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select a portion type')),
       );
       return false;
     }
-    
+
     return true;
   }
-  
+
   void _savePortion() {
     if (_validateInputs()) {
       Navigator.pop(context, {
-        'portionName': _portionNameController.text,
-        'rowLength': _rowLengthController.text,
-        'portionType': _selectedPortionType,
+        'portionName': _portionNameController.text.trim(),
+        'rowLength': _rowLengthController.text.trim(),
+        'portionType': _selectedPortionType!,
+        'createdAt': DateTime.now(),
+        'updatedAt': DateTime.now(),
       });
     }
   }
@@ -71,14 +73,13 @@ class _NewPortionState extends State<NewPortion> {
   @override
   Widget build(BuildContext context) {
     final myColors = MyColors();
-    
+
     return Scaffold(
       backgroundColor: myColors.forestGreen,
       body: SafeArea(
         child: Column(
           children: [
             const FgwTopBar(title: 'New Portion'),
-            
             Expanded(
               child: Container(
                 width: double.infinity,
@@ -117,14 +118,17 @@ class _NewPortionState extends State<NewPortion> {
                               Text(
                                 'Create New Portion',
                                 style: GoogleFonts.robotoSlab(
-                                  fontSize: 20, 
+                                  fontSize: 20,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ],
                           ),
-                        ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.2, end: 0),
-                        
+                        )
+                            .animate()
+                            .fadeIn(duration: 400.ms)
+                            .slideY(begin: 0.2, end: 0),
+
                         // Portion name input
                         Text(
                           'Portion Name',
@@ -134,7 +138,7 @@ class _NewPortionState extends State<NewPortion> {
                           ),
                         ).animate().fadeIn(duration: 400.ms, delay: 100.ms),
                         const SizedBox(height: 8),
-                        
+
                         Container(
                           decoration: BoxDecoration(
                             color: Colors.white,
@@ -158,9 +162,9 @@ class _NewPortionState extends State<NewPortion> {
                             ),
                           ),
                         ).animate().fadeIn(duration: 400.ms, delay: 200.ms),
-                        
+
                         const SizedBox(height: 20),
-                        
+
                         // Row length input
                         Text(
                           'Row Length',
@@ -170,7 +174,7 @@ class _NewPortionState extends State<NewPortion> {
                           ),
                         ).animate().fadeIn(duration: 400.ms, delay: 300.ms),
                         const SizedBox(height: 8),
-                        
+
                         Container(
                           decoration: BoxDecoration(
                             color: Colors.white,
@@ -196,9 +200,9 @@ class _NewPortionState extends State<NewPortion> {
                             ),
                           ),
                         ).animate().fadeIn(duration: 400.ms, delay: 400.ms),
-                        
+
                         const SizedBox(height: 20),
-                        
+
                         // Portion type dropdown
                         Text(
                           'Portion Type',
@@ -208,7 +212,7 @@ class _NewPortionState extends State<NewPortion> {
                           ),
                         ).animate().fadeIn(duration: 400.ms, delay: 500.ms),
                         const SizedBox(height: 8),
-                        
+
                         Container(
                           decoration: BoxDecoration(
                             color: Colors.white,
@@ -227,15 +231,18 @@ class _NewPortionState extends State<NewPortion> {
                               value: _selectedPortionType,
                               isExpanded: true,
                               hint: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 16),
                                 child: Text(
                                   'Select portion type',
                                   style: TextStyle(color: Colors.grey[400]),
                                 ),
                               ),
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16),
                               borderRadius: BorderRadius.circular(12),
-                              icon: Icon(Icons.arrow_drop_down, color: Colors.grey[600]),
+                              icon: Icon(Icons.arrow_drop_down,
+                                  color: Colors.grey[600]),
                               items: _portionTypes.map((type) {
                                 return DropdownMenuItem<String>(
                                   value: type,
@@ -256,9 +263,9 @@ class _NewPortionState extends State<NewPortion> {
                             ),
                           ),
                         ).animate().fadeIn(duration: 400.ms, delay: 600.ms),
-                        
+
                         const SizedBox(height: 24),
-                        
+
                         // Help text
                         Container(
                           padding: const EdgeInsets.all(16),
@@ -349,11 +356,11 @@ class _NewPortionState extends State<NewPortion> {
       ).animate().slideY(begin: 1, end: 0, duration: 400.ms, delay: 800.ms),
     );
   }
-  
+
   Widget _getPortionTypeIcon(String type) {
     final myColors = MyColors();
     IconData iconData;
-    
+
     switch (type.toLowerCase()) {
       case 'leaf type':
         iconData = FontAwesomeIcons.leaf;
@@ -370,7 +377,7 @@ class _NewPortionState extends State<NewPortion> {
       default:
         iconData = FontAwesomeIcons.seedling;
     }
-    
+
     return Container(
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(

@@ -11,11 +11,21 @@ import 'cropPortionItem.dart';
 class PortionItem extends StatefulWidget {
   final String portionName;
   final String portionType;
+  final String portionId;
+  final List<Map<String, dynamic>>? rows;
+  final String? crop;
+  final String? cropFaze;
+  final String? dayCount;
 
   const PortionItem({
     super.key,
     required this.portionName,
     required this.portionType,
+    required this.portionId,
+    this.rows,
+    this.crop,
+    this.cropFaze,
+    this.dayCount,
   });
 
   @override
@@ -24,14 +34,53 @@ class PortionItem extends StatefulWidget {
 
 class _PortionItemState extends State<PortionItem> {
   // List to hold crop data for each container
-  List<Map<String, String>> cropData = [
-    {'crop': '', 'cropFaze': '', 'dayCount': '', 'rowNumber': '', 'rows': ''},
-    {'crop': '', 'cropFaze': '', 'dayCount': '', 'rowNumber': '', 'rows': ''},
-    {'crop': '', 'cropFaze': '', 'dayCount': '', 'rowNumber': '', 'rows': ''},
-  ];
+  late List<Map<String, String>> cropData;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize crop data
+    cropData = [
+      {
+        'crop': '',
+        'cropFaze': '',
+        'dayCount': '',
+        'rowNumber': '',
+        'rows': '0'
+      },
+      {
+        'crop': '',
+        'cropFaze': '',
+        'dayCount': '',
+        'rowNumber': '',
+        'rows': '0'
+      },
+      {
+        'crop': '',
+        'cropFaze': '',
+        'dayCount': '',
+        'rowNumber': '',
+        'rows': '0'
+      },
+    ];
+
+    // If we have existing crop data, populate the first container
+    if (widget.crop != null && widget.crop!.isNotEmpty) {
+      final rowCount = widget.rows?.length ?? 0;
+      print('Initializing with row count: $rowCount'); // Debug print
+      cropData[0] = {
+        'crop': widget.crop ?? '',
+        'cropFaze': widget.cropFaze ?? '',
+        'dayCount': widget.dayCount ?? '',
+        'rowNumber': 'Row 1',
+        'rows': rowCount.toString(), // Use actual row count
+      };
+    }
+  }
 
   // Function to update the crop data
-  void updateCropData(int index, String crop, String cropFaze, String dayCount, String rowNumber, String rows) {
+  void updateCropData(int index, String crop, String cropFaze, String dayCount,
+      String rowNumber, String rows) {
     setState(() {
       cropData[index] = {
         'crop': crop,
@@ -40,13 +89,13 @@ class _PortionItemState extends State<PortionItem> {
         'rowNumber': rowNumber,
         'rows': rows,
       };
-      
+
       // For debugging
       print('Updated crop data at index $index with rows: $rows');
       print('All crop data: $cropData');
     });
   }
-  
+
   // Get the appropriate icon for portion type
   IconData get _portionTypeIcon {
     switch (widget.portionType.toLowerCase()) {
@@ -56,30 +105,35 @@ class _PortionItemState extends State<PortionItem> {
         return FontAwesomeIcons.leaf;
       case 'fruit type':
         return FontAwesomeIcons.apple;
+      case 'grain type':
+        return FontAwesomeIcons.wheatAwn;
+      case 'mixed type':
+        return FontAwesomeIcons.seedling;
       default:
         return FontAwesomeIcons.plantWilt;
     }
+  }
+
+  // Calculate total rows across all crops
+  int get totalRows {
+    print('Calculating total rows. Widget rows: ${widget.rows}'); // Debug print
+    if (widget.rows != null && widget.rows!.isNotEmpty) {
+      final count = widget.rows!.length;
+      print('Found $count rows'); // Debug print
+      return count;
+    }
+    return 0;
   }
 
   @override
   Widget build(BuildContext context) {
     final myColors = MyColors();
     final screenWidth = MediaQuery.of(context).size.width;
-    
-    // Calculate total rows across all crops
-    int totalRows = 0;
-    bool hasAnyRows = false;
-    
-    for (var crop in cropData) {
-      if (crop['rows'] != null && crop['rows']!.isNotEmpty) {
-        hasAnyRows = true;
-        totalRows += int.tryParse(crop['rows']!) ?? 0;
-      }
-    }
-    
+
     // For debugging
-    print('Has any rows: $hasAnyRows, Total rows: $totalRows');
-    
+    print('Rows data: ${widget.rows}');
+    print('Total rows: $totalRows');
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -139,29 +193,13 @@ class _PortionItemState extends State<PortionItem> {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        
-                        // Display the total row count if any crop has rows information
-                        if (hasAnyRows && totalRows > 0)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: Row(
-                              children: [
-                                FaIcon(
-                                  FontAwesomeIcons.layerGroup,
-                                  size: 12,
-                                  color: Colors.grey[600],
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  '$totalRows Rows',
-                                  style: GoogleFonts.roboto(
-                                    fontSize: 13,
-                                    color: Colors.grey[700],
-                                  ),
-                                ),
-                              ],
-                            ),
+                        Text(
+                          '$totalRows Rows', // Will display "3 Rows" for your case
+                          style: GoogleFonts.roboto(
+                            fontSize: 14,
+                            color: Colors.grey[600],
                           ),
+                        ),
                       ],
                     ),
                   ],
@@ -171,7 +209,7 @@ class _PortionItemState extends State<PortionItem> {
                     // Type badge
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 10, 
+                        horizontal: 10,
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
@@ -197,7 +235,8 @@ class _PortionItemState extends State<PortionItem> {
                         // Edit portion functionality
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('Edit portion functionality coming soon'),
+                            content:
+                                Text('Edit portion functionality coming soon'),
                             behavior: SnackBarBehavior.floating,
                             backgroundColor: myColors.forestGreen,
                           ),
@@ -216,7 +255,7 @@ class _PortionItemState extends State<PortionItem> {
               ],
             ),
           ),
-          
+
           // Crops section
           Padding(
             padding: const EdgeInsets.all(16),
@@ -246,7 +285,8 @@ class _PortionItemState extends State<PortionItem> {
                               // Add new crop functionality
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content: Text('Add crop functionality coming soon'),
+                                  content: Text(
+                                      'Add crop functionality coming soon'),
                                   behavior: SnackBarBehavior.floating,
                                   backgroundColor: myColors.forestGreen,
                                 ),
@@ -273,44 +313,52 @@ class _PortionItemState extends State<PortionItem> {
                         ],
                       ),
                     ),
-                    
+
                     const SizedBox(width: 12),
-                    
+
                     // Crops list
                     Expanded(
                       child: SizedBox(
                         height: 170, // Match height of CropPortionItem
                         child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: 3, // Fixed to 3 crops for now
-                          itemBuilder: (context, index) {
-                            // Check if data is available for this crop container
-                            if (cropData[index]['crop']!.isNotEmpty) {
-                              // Replace AddCropContainer with CropPortionItem when data is available
-                              return Padding(
-                                padding: EdgeInsets.only(right: index < 2 ? 8 : 0),
-                                child: CropPortionItem(
-                                  crop: cropData[index]['crop']!,
-                                  cropFaze: cropData[index]['cropFaze']!,
-                                  dayCount: cropData[index]['dayCount']!,
-                                  rowCount: cropData[index]['rows']!,
-                                  progress: 0.8, // You can adjust the progress value
-                                ),
-                              ).animate().fadeIn(duration: 300.ms, delay: 100.ms * index);
-                            } else {
-                              // Show AddCropContainer if data is not available
-                              return Padding(
-                                padding: EdgeInsets.only(right: index < 2 ? 8 : 0),
-                                child: AddCropContainer(
-                                  onSave: (crop, cropFaze, dayCount, rowNumber, rows) {
-                                    updateCropData(
-                                      index, crop, cropFaze, dayCount, rowNumber, rows);
-                                  },
-                                ),
-                              ).animate().fadeIn(duration: 300.ms, delay: 100.ms * index);
-                            }
-                          }
-                        ),
+                            scrollDirection: Axis.horizontal,
+                            itemCount: 3, // Fixed to 3 crops for now
+                            itemBuilder: (context, index) {
+                              // Check if data is available for this crop container
+                              if (cropData[index]['crop']!.isNotEmpty) {
+                                // Replace AddCropContainer with CropPortionItem when data is available
+                                return Padding(
+                                  padding:
+                                      EdgeInsets.only(right: index < 2 ? 8 : 0),
+                                  child: CropPortionItem(
+                                    crop: cropData[index]['crop']!,
+                                    cropFaze: cropData[index]['cropFaze']!,
+                                    dayCount: cropData[index]['dayCount']!,
+                                    rowCount: int.tryParse(
+                                            cropData[index]['rows']!) ??
+                                        0,
+                                    progress: 0.0,
+                                    portionId: widget.portionId,
+                                  ),
+                                ).animate().fadeIn(
+                                    duration: 300.ms, delay: 100.ms * index);
+                              } else {
+                                // Show AddCropContainer if data is not available
+                                return Padding(
+                                  padding:
+                                      EdgeInsets.only(right: index < 2 ? 8 : 0),
+                                  child: AddCropContainer(
+                                    portionId: widget.portionId,
+                                    onSave: (crop, cropFaze, dayCount,
+                                        rowNumber, rows) {
+                                      updateCropData(index, crop, cropFaze,
+                                          dayCount, rowNumber, rows);
+                                    },
+                                  ),
+                                ).animate().fadeIn(
+                                    duration: 300.ms, delay: 100.ms * index);
+                              }
+                            }),
                       ),
                     ),
                   ],

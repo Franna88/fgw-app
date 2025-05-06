@@ -4,13 +4,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../Constants/colors.dart';
 import '../Create_Portion/newPortion.dart';
 import '../Full_Portion_view/fullPortionView.dart';
 
 class FarmPortionsPage extends StatefulWidget {
-  const FarmPortionsPage({super.key});
+  final Map<String, dynamic> field;
+
+  const FarmPortionsPage({super.key, required this.field});
 
   @override
   State<FarmPortionsPage> createState() => _FarmPortionsPageState();
@@ -18,62 +22,115 @@ class FarmPortionsPage extends StatefulWidget {
 
 class _FarmPortionsPageState extends State<FarmPortionsPage> {
   // Sample initial data for demo purposes
-  final List<Map<String, dynamic>> _portions = [
-    {
-      'portionName': 'Portion A',
-      'rowLength': '5',
-      'portionType': 'Root Type',
-      'crop': 'Carrot',
-      'completedTasks': 2,
-      'totalTasks': 5,
-    },
-    {
-      'portionName': 'Portion B',
-      'rowLength': '3',
-      'portionType': 'Leaf Type',
-      'crop': 'Spinach',
-      'completedTasks': 1,
-      'totalTasks': 4,
-    },
-  ];
-  
+  List<Map<String, dynamic>> _portions = [];
   bool _isLoading = false;
   String _searchQuery = '';
-  
-  void _addPortion(String portionName, String rowLength, String portionType) {
-    setState(() {
-      _portions.add({
-        'portionName': portionName,
+
+  Future<void> _addPortion(
+      String portionName, String rowLength, String portionType) async {
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        throw Exception('User not logged in');
+      }
+
+      // Create portion data
+      final portionData = {
+        'name': portionName,
         'rowLength': rowLength,
         'portionType': portionType,
+        'fieldId': widget.field['id'],
         'crop': '',
         'completedTasks': 0,
         'totalTasks': 0,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      // Add portion to user's cropFields/fieldId/portions collection
+      final portionDocRef = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .collection('cropFields')
+          .doc(widget.field['id'])
+          .collection('portions')
+          .add(portionData);
+
+      // Update field document to include this portion ID
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .collection('cropFields')
+          .doc(widget.field['id'])
+          .update({
+        'portions': FieldValue.arrayUnion([portionDocRef.id]),
+        'updatedAt': FieldValue.serverTimestamp(),
       });
-    });
+
+      // Add to local list
+      setState(() {
+        _portions.add({
+          'id': portionDocRef.id,
+          'portionName': portionName,
+          'rowLength': rowLength,
+          'portionType': portionType,
+          'crop': '',
+          'completedTasks': 0,
+          'totalTasks': 0,
+          'cropFaze': '',
+          'dayCount': '',
+          'rows': [],
+        });
+        _isLoading = false;
+      });
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$portionName added successfully'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: MyColors().forestGreen,
+        ),
+      );
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error adding portion: $e'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   void _navigateToCreatePortion() async {
     setState(() {
       _isLoading = true;
     });
-    
+
     final newPortion = await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const NewPortion()),
     );
-    
+
     setState(() {
       _isLoading = false;
     });
-    
+
     if (newPortion != null && mounted) {
       _addPortion(
         newPortion['portionName'],
         newPortion['rowLength'],
         newPortion['portionType'],
       );
-      
+
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -84,17 +141,18 @@ class _FarmPortionsPageState extends State<FarmPortionsPage> {
       );
     }
   }
-  
+
   void _navigateToPortionView(Map<String, dynamic> portion) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const FullPortionView()),
+      MaterialPageRoute(
+          builder: (context) => FullPortionView(portionId: portion['id'])),
     );
   }
-  
+
   void _deletePortion(int index) {
     final portionName = _portions[index]['portionName'];
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -151,30 +209,102 @@ class _FarmPortionsPageState extends State<FarmPortionsPage> {
       ),
     );
   }
-  
+
   List<Map<String, dynamic>> get filteredPortions {
     if (_searchQuery.isEmpty) {
       return _portions;
     }
-    
-    return _portions.where((portion) => 
-      portion['portionName'].toLowerCase().contains(_searchQuery.toLowerCase()) ||
-      portion['portionType'].toLowerCase().contains(_searchQuery.toLowerCase()) ||
-      portion['crop'].toString().toLowerCase().contains(_searchQuery.toLowerCase())
-    ).toList();
+
+    return _portions
+        .where((portion) =>
+            portion['portionName']
+                .toLowerCase()
+                .contains(_searchQuery.toLowerCase()) ||
+            portion['portionType']
+                .toLowerCase()
+                .contains(_searchQuery.toLowerCase()) ||
+            portion['crop']
+                .toString()
+                .toLowerCase()
+                .contains(_searchQuery.toLowerCase()))
+        .toList();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPortions();
+  }
+
+  Future<void> _loadPortions() async {
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        throw Exception('User not logged in');
+      }
+
+      // Get portions for this field from user's collection
+      final portionsQuery = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .collection('cropFields')
+          .doc(widget.field['id'])
+          .collection('portions')
+          .get();
+
+      final List<Map<String, dynamic>> loadedPortions = [];
+      for (var doc in portionsQuery.docs) {
+        final data = doc.data();
+        loadedPortions.add({
+          'id': doc.id,
+          'portionName': data['name'] ?? 'Unnamed Portion',
+          'rowLength': data['rowLength'] ?? '0',
+          'portionType': data['portionType'] ?? 'Unknown Type',
+          'crop': data['crop'] ?? '',
+          'completedTasks': data['completedTasks'] ?? 0,
+          'totalTasks': data['totalTasks'] ?? 0,
+          'cropFaze': data['cropFaze'] ?? '',
+          'dayCount': data['dayCount'] ?? '',
+          'rows': data['rows'] ?? [],
+        });
+
+        // For debugging
+        print('Loaded portion: ${doc.id}');
+        print('Rows data: ${data['rows']}');
+      }
+
+      setState(() {
+        _portions = loadedPortions;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error loading portions: $e'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final myColors = MyColors();
-    
+
     return Scaffold(
       backgroundColor: myColors.forestGreen,
       body: SafeArea(
         child: Column(
           children: [
             const FgwTopBar(title: 'Field Portions'),
-            
             Expanded(
               child: Container(
                 width: double.infinity,
@@ -214,24 +344,28 @@ class _FarmPortionsPageState extends State<FarmPortionsPage> {
                                     prefixIcon: const Icon(Icons.search),
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12),
-                                      borderSide: BorderSide(color: Colors.grey[300]!),
+                                      borderSide:
+                                          BorderSide(color: Colors.grey[300]!),
                                     ),
                                     enabledBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12),
-                                      borderSide: BorderSide(color: Colors.grey[300]!),
+                                      borderSide:
+                                          BorderSide(color: Colors.grey[300]!),
                                     ),
                                     focusedBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12),
-                                      borderSide: BorderSide(color: myColors.forestGreen),
+                                      borderSide: BorderSide(
+                                          color: myColors.forestGreen),
                                     ),
-                                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                        vertical: 12),
                                     filled: true,
                                     fillColor: Colors.grey[50],
                                   ),
                                 ),
-                                
+
                                 const SizedBox(height: 16),
-                                
+
                                 // Stats cards
                                 Row(
                                   children: [
@@ -246,8 +380,9 @@ class _FarmPortionsPageState extends State<FarmPortionsPage> {
                                     const SizedBox(width: 8),
                                     Expanded(
                                       child: _buildStatCard(
-                                        _portions.isEmpty ? '0' : 
-                                        '${_portions.fold<int>(0, (sum, portion) => sum + (portion['completedTasks'] as int))}',
+                                        _portions.isEmpty
+                                            ? '0'
+                                            : '${_portions.fold<int>(0, (sum, portion) => sum + (portion['completedTasks'] as int))}',
                                         'Completed Tasks',
                                         myColors.green,
                                         Icons.check_circle_outline,
@@ -258,7 +393,7 @@ class _FarmPortionsPageState extends State<FarmPortionsPage> {
                               ],
                             ),
                           ),
-                          
+
                           // Info card
                           Container(
                             width: double.infinity,
@@ -305,7 +440,7 @@ class _FarmPortionsPageState extends State<FarmPortionsPage> {
                               ],
                             ),
                           ),
-                          
+
                           // Portions list
                           Expanded(
                             child: filteredPortions.isEmpty
@@ -320,10 +455,12 @@ class _FarmPortionsPageState extends State<FarmPortionsPage> {
                                         direction: DismissDirection.endToStart,
                                         background: Container(
                                           alignment: Alignment.centerRight,
-                                          padding: const EdgeInsets.only(right: 20),
+                                          padding:
+                                              const EdgeInsets.only(right: 20),
                                           decoration: BoxDecoration(
                                             color: Colors.red[400],
-                                            borderRadius: BorderRadius.circular(12),
+                                            borderRadius:
+                                                BorderRadius.circular(12),
                                           ),
                                           child: const Icon(
                                             Icons.delete_outline,
@@ -350,11 +487,13 @@ class _FarmPortionsPageState extends State<FarmPortionsPage> {
                                                 style: GoogleFonts.roboto(),
                                               ),
                                               shape: RoundedRectangleBorder(
-                                                borderRadius: BorderRadius.circular(16),
+                                                borderRadius:
+                                                    BorderRadius.circular(16),
                                               ),
                                               actions: [
                                                 TextButton(
-                                                  onPressed: () => Navigator.pop(context),
+                                                  onPressed: () =>
+                                                      Navigator.pop(context),
                                                   child: Text(
                                                     'Cancel',
                                                     style: GoogleFonts.roboto(
@@ -367,11 +506,16 @@ class _FarmPortionsPageState extends State<FarmPortionsPage> {
                                                     delete = true;
                                                     Navigator.pop(context);
                                                   },
-                                                  style: ElevatedButton.styleFrom(
+                                                  style:
+                                                      ElevatedButton.styleFrom(
                                                     backgroundColor: Colors.red,
-                                                    foregroundColor: Colors.white,
-                                                    shape: RoundedRectangleBorder(
-                                                      borderRadius: BorderRadius.circular(8),
+                                                    foregroundColor:
+                                                        Colors.white,
+                                                    shape:
+                                                        RoundedRectangleBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              8),
                                                     ),
                                                   ),
                                                   child: Text(
@@ -385,12 +529,26 @@ class _FarmPortionsPageState extends State<FarmPortionsPage> {
                                           return delete;
                                         },
                                         child: GestureDetector(
-                                          onTap: () => _navigateToPortionView(portion),
+                                          onTap: () =>
+                                              _navigateToPortionView(portion),
                                           child: Padding(
-                                            padding: const EdgeInsets.only(bottom: 16),
+                                            padding: const EdgeInsets.only(
+                                                bottom: 16),
                                             child: PortionItem(
-                                              portionName: portion['portionName'],
-                                              portionType: portion['portionType'],
+                                              portionName:
+                                                  portion['portionName'],
+                                              portionType:
+                                                  portion['portionType'],
+                                              portionId: portion['id'],
+                                              crop: portion['crop'],
+                                              cropFaze: portion['cropFaze'],
+                                              dayCount: portion['dayCount'],
+                                              rows: portion['rows'] != null
+                                                  ? List<
+                                                          Map<String,
+                                                              dynamic>>.from(
+                                                      portion['rows'])
+                                                  : null,
                                             ),
                                           ).animate().fadeIn(
                                                 duration: 400.ms,
@@ -401,7 +559,7 @@ class _FarmPortionsPageState extends State<FarmPortionsPage> {
                                     },
                                   ),
                           ),
-                          
+
                           // Add button at bottom
                           Container(
                             padding: const EdgeInsets.all(16),
@@ -424,7 +582,8 @@ class _FarmPortionsPageState extends State<FarmPortionsPage> {
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: myColors.forestGreen,
                                   foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 12),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(10),
                                   ),
@@ -441,8 +600,9 @@ class _FarmPortionsPageState extends State<FarmPortionsPage> {
       ),
     );
   }
-  
-  Widget _buildStatCard(String value, String label, Color color, IconData icon) {
+
+  Widget _buildStatCard(
+      String value, String label, Color color, IconData icon) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       decoration: BoxDecoration(
@@ -482,7 +642,7 @@ class _FarmPortionsPageState extends State<FarmPortionsPage> {
       ),
     );
   }
-  
+
   Widget _buildEmptyState() {
     return Center(
       child: Column(
@@ -504,7 +664,7 @@ class _FarmPortionsPageState extends State<FarmPortionsPage> {
           ).animate().fadeIn(duration: 400.ms),
           const SizedBox(height: 12),
           Text(
-            _searchQuery.isEmpty 
+            _searchQuery.isEmpty
                 ? 'Create portions to organize your field'
                 : 'Try a different search term',
             textAlign: TextAlign.center,
@@ -522,7 +682,8 @@ class _FarmPortionsPageState extends State<FarmPortionsPage> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: MyColors().forestGreen,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),

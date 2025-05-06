@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>API_KEY</key>
+	<string>AIzaSyBbL2N_qtyI8lcg7GWK0X-l8hAg2gSWhCs</string>
+	<key>GCM_SENDER_ID</key>
+	<string>918561985276</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.example.farming_gods_way</string>
+	<key>PROJECT_ID</key>
+	<string>farminggodsway-a31d4</string>
+	<key>STORAGE_BUCKET</key>
+	<string>farminggodsway-a31d4.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<true></true>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:918561985276:ios:e5e48b4382065473ba3d79</string>
+	<key>MEASUREMENT_ID</key>
+	<string>G-06EZME3JZP</string>
+</dict>
+</plist> 

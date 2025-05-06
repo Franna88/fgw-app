@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:provider/provider.dart';
+import 'package:farming_gods_way/services/user_provider.dart';
+import 'package:farming_gods_way/services/firebase_service.dart';
 
 import '../../Constants/colors.dart';
 
@@ -16,17 +19,18 @@ class FarmSoil extends StatefulWidget {
 
 class _FarmSoilState extends State<FarmSoil> {
   final _soilTypes = [
-    'Clay', 
-    'Silt', 
-    'Sandy', 
-    'Loam', 
-    'Peat', 
+    'Clay',
+    'Silt',
+    'Sandy',
+    'Loam',
+    'Peat',
     'Chalky',
     'Rocky'
   ];
-  
+
   String? _selectedSoilType;
-  
+  bool isLoading = false;
+
   final Map<String, bool> soilCharacteristics = {
     'Well-draining': true,
     'Nutrient-rich': false,
@@ -37,6 +41,84 @@ class _FarmSoilState extends State<FarmSoil> {
     'Rocky': false,
     'High water table': false,
   };
+
+  void _continueToFarmWorkers() async {
+    if (_selectedSoilType == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please select a soil type'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      // Get the farmId from provider
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final farmId = userProvider.registrationData['farmId'];
+
+      if (farmId != null) {
+        // Get selected characteristics
+        final List<String> selectedCharacteristics = [];
+        soilCharacteristics.forEach((characteristic, isSelected) {
+          if (isSelected) {
+            selectedCharacteristics.add(characteristic);
+          }
+        });
+
+        // Save soil data
+        final soilData = {
+          'soilType': _selectedSoilType,
+          'soilCharacteristics': selectedCharacteristics,
+          'registrationStep': 'soil',
+          'updatedAt': DateTime.now().toIso8601String(),
+        };
+
+        // Store in provider
+        userProvider.storeRegistrationData(soilData);
+
+        // Update in Firestore
+        await FirebaseService.firestore
+            .collection('farms')
+            .doc(farmId)
+            .update(soilData);
+
+        // Proceed to next step
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const FarmWorkers(),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content:
+                Text('Farm ID not found. Please restart farm registration.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error saving soil data: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -55,7 +137,7 @@ class _FarmSoilState extends State<FarmSoil> {
               ),
             ),
           ),
-          
+
           // Main content
           SafeArea(
             child: Column(
@@ -63,7 +145,8 @@ class _FarmSoilState extends State<FarmSoil> {
               children: [
                 // Header section
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
                   child: Row(
                     children: [
                       IconButton(
@@ -97,10 +180,11 @@ class _FarmSoilState extends State<FarmSoil> {
                     ],
                   ),
                 ),
-                
+
                 // Progress indicator
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
                   child: Container(
                     height: 4,
                     decoration: BoxDecoration(
@@ -131,14 +215,15 @@ class _FarmSoilState extends State<FarmSoil> {
                     ),
                   ).animate().fadeIn(delay: 300.ms),
                 ),
-                
+
                 const SizedBox(height: 10),
-                
+
                 // Form content
                 Expanded(
                   child: Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 30),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 25, vertical: 30),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: const BorderRadius.only(
@@ -164,10 +249,13 @@ class _FarmSoilState extends State<FarmSoil> {
                             fontWeight: FontWeight.w600,
                             color: Colors.black87,
                           ),
-                        ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
-                        
+                        )
+                            .animate()
+                            .fadeIn(duration: 400.ms)
+                            .slideY(begin: 0.1, end: 0),
+
                         const SizedBox(height: 10),
-                        
+
                         // Description
                         Text(
                           "Tell us about your soil type and characteristics",
@@ -175,10 +263,13 @@ class _FarmSoilState extends State<FarmSoil> {
                             fontSize: 14,
                             color: Colors.grey[600],
                           ),
-                        ).animate().fadeIn(duration: 400.ms, delay: 100.ms).slideY(begin: 0.1, end: 0),
-                        
+                        )
+                            .animate()
+                            .fadeIn(duration: 400.ms, delay: 100.ms)
+                            .slideY(begin: 0.1, end: 0),
+
                         const SizedBox(height: 25),
-                        
+
                         // Soil type dropdown
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -202,7 +293,8 @@ class _FarmSoilState extends State<FarmSoil> {
                                 child: DropdownButton<String>(
                                   value: _selectedSoilType,
                                   hint: Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16),
                                     child: Text(
                                       'Select soil type',
                                       style: GoogleFonts.roboto(
@@ -213,7 +305,8 @@ class _FarmSoilState extends State<FarmSoil> {
                                   ),
                                   isExpanded: true,
                                   borderRadius: BorderRadius.circular(12),
-                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16),
                                   icon: Icon(
                                     Icons.arrow_drop_down_rounded,
                                     color: MyColors().forestGreen,
@@ -240,9 +333,9 @@ class _FarmSoilState extends State<FarmSoil> {
                             ),
                           ],
                         ).animate().fadeIn(duration: 500.ms, delay: 200.ms),
-                        
+
                         const SizedBox(height: 25),
-                        
+
                         // Soil characteristics
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -265,14 +358,15 @@ class _FarmSoilState extends State<FarmSoil> {
                             ),
                           ],
                         ).animate().fadeIn(duration: 500.ms, delay: 300.ms),
-                        
+
                         const SizedBox(height: 10),
-                        
+
                         // Characteristics list
                         Expanded(
                           child: GridView.builder(
                             physics: const BouncingScrollPhysics(),
-                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: 2,
                               childAspectRatio: 2.5,
                               crossAxisSpacing: 15,
@@ -280,29 +374,35 @@ class _FarmSoilState extends State<FarmSoil> {
                             ),
                             itemCount: soilCharacteristics.length,
                             itemBuilder: (context, index) {
-                              final characteristic = soilCharacteristics.keys.elementAt(index);
-                              final isSelected = soilCharacteristics[characteristic]!;
-                              
+                              final characteristic =
+                                  soilCharacteristics.keys.elementAt(index);
+                              final isSelected =
+                                  soilCharacteristics[characteristic]!;
+
                               return GestureDetector(
                                 onTap: () {
                                   setState(() {
-                                    soilCharacteristics[characteristic] = !isSelected;
+                                    soilCharacteristics[characteristic] =
+                                        !isSelected;
                                   });
                                 },
                                 child: Container(
                                   decoration: BoxDecoration(
-                                    color: isSelected 
-                                        ? MyColors().forestGreen.withOpacity(0.1) 
+                                    color: isSelected
+                                        ? MyColors()
+                                            .forestGreen
+                                            .withOpacity(0.1)
                                         : Colors.grey[50],
                                     borderRadius: BorderRadius.circular(10),
                                     border: Border.all(
-                                      color: isSelected 
-                                          ? MyColors().forestGreen 
+                                      color: isSelected
+                                          ? MyColors().forestGreen
                                           : Colors.grey[300]!,
                                       width: isSelected ? 1.5 : 1,
                                     ),
                                   ),
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 8),
                                   child: Row(
                                     children: [
                                       SizedBox(
@@ -312,13 +412,15 @@ class _FarmSoilState extends State<FarmSoil> {
                                           value: isSelected,
                                           onChanged: (value) {
                                             setState(() {
-                                              soilCharacteristics[characteristic] = value!;
+                                              soilCharacteristics[
+                                                  characteristic] = value!;
                                             });
                                           },
                                           activeColor: MyColors().forestGreen,
                                           checkColor: Colors.white,
                                           shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(4),
+                                            borderRadius:
+                                                BorderRadius.circular(4),
                                           ),
                                         ),
                                       ),
@@ -328,8 +430,8 @@ class _FarmSoilState extends State<FarmSoil> {
                                           characteristic,
                                           style: GoogleFonts.roboto(
                                             fontSize: 14,
-                                            fontWeight: isSelected 
-                                                ? FontWeight.w500 
+                                            fontWeight: isSelected
+                                                ? FontWeight.w500
                                                 : FontWeight.normal,
                                             color: Colors.black87,
                                           ),
@@ -340,15 +442,16 @@ class _FarmSoilState extends State<FarmSoil> {
                                   ),
                                 ),
                               ).animate().fadeIn(
-                                duration: 400.ms,
-                                delay: Duration(milliseconds: 300 + (index * 50)),
-                              );
+                                    duration: 400.ms,
+                                    delay: Duration(
+                                        milliseconds: 300 + (index * 50)),
+                                  );
                             },
                           ),
                         ),
-                        
+
                         const SizedBox(height: 25),
-                        
+
                         // Soil information note
                         Container(
                           padding: const EdgeInsets.all(15),
@@ -377,27 +480,24 @@ class _FarmSoilState extends State<FarmSoil> {
                             ],
                           ),
                         ).animate().fadeIn(duration: 600.ms, delay: 600.ms),
-                        
+
                         const SizedBox(height: 20),
-                        
+
                         // Next button
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.only(top: 5),
                           child: Column(
                             children: [
-                              CommonButton(
-                                customWidth: 200,
-                                buttonText: 'Continue',
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => const FarmWorkers(),
+                              isLoading
+                                  ? CircularProgressIndicator(
+                                      color: MyColors().forestGreen,
+                                    )
+                                  : CommonButton(
+                                      customWidth: 200,
+                                      buttonText: 'Continue',
+                                      onTap: _continueToFarmWorkers,
                                     ),
-                                  );
-                                },
-                              ),
                               const SizedBox(height: 15),
                               Text(
                                 "Next: Farm workers information",
@@ -412,7 +512,10 @@ class _FarmSoilState extends State<FarmSoil> {
                         ).animate().fadeIn(duration: 800.ms, delay: 700.ms),
                       ],
                     ),
-                  ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.05, end: 0),
+                  )
+                      .animate()
+                      .fadeIn(duration: 400.ms)
+                      .slideY(begin: 0.05, end: 0),
                 ),
               ],
             ),

@@ -9,7 +9,7 @@ class ProductionRecordItem extends StatefulWidget {
   final String date;
   final String product;
   final String productQuantity;
-  
+
   const ProductionRecordItem({
     super.key,
     required this.date,
@@ -111,7 +111,8 @@ class _ProductionRecordItemState extends State<ProductionRecordItem> {
                   ],
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(12),
@@ -128,7 +129,7 @@ class _ProductionRecordItemState extends State<ProductionRecordItem> {
               ],
             ),
           ),
-          
+
           // Content
           Padding(
             padding: const EdgeInsets.all(16),
@@ -149,7 +150,7 @@ class _ProductionRecordItemState extends State<ProductionRecordItem> {
                   ),
                 ),
                 const SizedBox(width: 16),
-                
+
                 // Product details
                 Expanded(
                   child: Column(
@@ -174,10 +175,11 @@ class _ProductionRecordItemState extends State<ProductionRecordItem> {
                     ],
                   ),
                 ),
-                
+
                 // Quantity
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: Colors.grey[100],
                     borderRadius: BorderRadius.circular(12),

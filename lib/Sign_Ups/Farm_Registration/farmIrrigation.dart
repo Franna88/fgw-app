@@ -6,6 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:provider/provider.dart';
+import 'package:farming_gods_way/services/user_provider.dart';
+import 'package:farming_gods_way/services/firebase_service.dart';
 
 class FarmIrrigation extends StatefulWidget {
   const FarmIrrigation({super.key});
@@ -15,11 +18,95 @@ class FarmIrrigation extends StatefulWidget {
 }
 
 class _FarmIrrigationState extends State<FarmIrrigation> {
-  final _irrigationTypes = ['Drip Irrigation', 'Sprinkler', 'Flood Irrigation', 'Rain-fed', 'Other'];
-  final _waterSources = ['River', 'Well', 'Dam', 'Rain', 'Borehole', 'Municipal Supply', 'Other'];
-  
+  final _irrigationTypes = [
+    'Drip Irrigation',
+    'Sprinkler',
+    'Flood Irrigation',
+    'Rain-fed',
+    'Other'
+  ];
+  final _waterSources = [
+    'River',
+    'Well',
+    'Dam',
+    'Rain',
+    'Borehole',
+    'Municipal Supply',
+    'Other'
+  ];
+
   String? _selectedIrrigationType;
   String? _selectedWaterSource;
+  bool isLoading = false;
+
+  void _continueToFarmType() async {
+    if (_selectedIrrigationType != null && _selectedWaterSource != null) {
+      setState(() {
+        isLoading = true;
+      });
+
+      try {
+        // Get the farmId from provider
+        final userProvider = Provider.of<UserProvider>(context, listen: false);
+        final farmId = userProvider.registrationData['farmId'];
+
+        if (farmId != null) {
+          // Save irrigation data
+          final irrigationData = {
+            'irrigationType': _selectedIrrigationType,
+            'waterSource': _selectedWaterSource,
+            'registrationStep': 'irrigation',
+            'updatedAt': DateTime.now().toIso8601String(),
+          };
+
+          // Store in provider
+          userProvider.storeRegistrationData(irrigationData);
+
+          // Update in Firestore
+          await FirebaseService.firestore
+              .collection('farms')
+              .doc(farmId)
+              .update(irrigationData);
+
+          // Proceed to next step
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const FarmType(),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content:
+                  Text('Farm ID not found. Please restart farm registration.'),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error saving irrigation data: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      } finally {
+        if (mounted) {
+          setState(() {
+            isLoading = false;
+          });
+        }
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please select both irrigation type and water source'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +125,7 @@ class _FarmIrrigationState extends State<FarmIrrigation> {
               ),
             ),
           ),
-          
+
           // Main content
           SafeArea(
             child: Column(
@@ -46,7 +133,8 @@ class _FarmIrrigationState extends State<FarmIrrigation> {
               children: [
                 // Header section
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
                   child: Row(
                     children: [
                       IconButton(
@@ -80,10 +168,11 @@ class _FarmIrrigationState extends State<FarmIrrigation> {
                     ],
                   ),
                 ),
-                
+
                 // Progress indicator
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
                   child: Container(
                     height: 4,
                     decoration: BoxDecoration(
@@ -114,14 +203,15 @@ class _FarmIrrigationState extends State<FarmIrrigation> {
                     ),
                   ).animate().fadeIn(delay: 300.ms),
                 ),
-                
+
                 const SizedBox(height: 10),
-                
+
                 // Form content
                 Expanded(
                   child: Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 30),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 25, vertical: 30),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: const BorderRadius.only(
@@ -147,20 +237,26 @@ class _FarmIrrigationState extends State<FarmIrrigation> {
                             fontWeight: FontWeight.w500,
                             color: Colors.black87,
                           ),
-                        ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
-                        
+                        )
+                            .animate()
+                            .fadeIn(duration: 400.ms)
+                            .slideY(begin: 0.1, end: 0),
+
                         const SizedBox(height: 10),
-                        
+
                         Text(
                           'Tell us how you water your farm',
                           style: GoogleFonts.roboto(
                             fontSize: 14,
                             color: Colors.grey[600],
                           ),
-                        ).animate().fadeIn(duration: 400.ms, delay: 100.ms).slideY(begin: 0.1, end: 0),
-                        
+                        )
+                            .animate()
+                            .fadeIn(duration: 400.ms, delay: 100.ms)
+                            .slideY(begin: 0.1, end: 0),
+
                         const SizedBox(height: 30),
-                        
+
                         // Irrigation type dropdown
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -184,7 +280,8 @@ class _FarmIrrigationState extends State<FarmIrrigation> {
                                 child: DropdownButton<String>(
                                   value: _selectedIrrigationType,
                                   hint: Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16),
                                     child: Text(
                                       'Select irrigation type',
                                       style: GoogleFonts.roboto(
@@ -195,7 +292,8 @@ class _FarmIrrigationState extends State<FarmIrrigation> {
                                   ),
                                   isExpanded: true,
                                   borderRadius: BorderRadius.circular(12),
-                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16),
                                   icon: Icon(
                                     Icons.arrow_drop_down_rounded,
                                     color: MyColors().forestGreen,
@@ -222,9 +320,9 @@ class _FarmIrrigationState extends State<FarmIrrigation> {
                             ),
                           ],
                         ).animate().fadeIn(duration: 500.ms, delay: 200.ms),
-                        
+
                         const SizedBox(height: 24),
-                        
+
                         // Water source dropdown
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -248,7 +346,8 @@ class _FarmIrrigationState extends State<FarmIrrigation> {
                                 child: DropdownButton<String>(
                                   value: _selectedWaterSource,
                                   hint: Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16),
                                     child: Text(
                                       'Select water source',
                                       style: GoogleFonts.roboto(
@@ -259,7 +358,8 @@ class _FarmIrrigationState extends State<FarmIrrigation> {
                                   ),
                                   isExpanded: true,
                                   borderRadius: BorderRadius.circular(12),
-                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16),
                                   icon: Icon(
                                     Icons.arrow_drop_down_rounded,
                                     color: MyColors().forestGreen,
@@ -286,9 +386,9 @@ class _FarmIrrigationState extends State<FarmIrrigation> {
                             ),
                           ],
                         ).animate().fadeIn(duration: 500.ms, delay: 300.ms),
-                        
+
                         const Spacer(),
-                        
+
                         // Information note
                         Container(
                           padding: const EdgeInsets.all(16),
@@ -317,27 +417,23 @@ class _FarmIrrigationState extends State<FarmIrrigation> {
                             ],
                           ),
                         ).animate().fadeIn(duration: 600.ms, delay: 400.ms),
-                        
+
                         const SizedBox(height: 24),
-                        
+
                         // Next button
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.only(top: 5),
                           child: Column(
                             children: [
-                              CommonButton(
-                                customWidth: 200,
-                                buttonText: 'Continue',
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => const FarmType(),
+                              isLoading
+                                  ? CircularProgressIndicator(
+                                      color: MyColors().forestGreen)
+                                  : CommonButton(
+                                      customWidth: 200,
+                                      buttonText: 'Continue',
+                                      onTap: _continueToFarmType,
                                     ),
-                                  );
-                                },
-                              ),
                               const SizedBox(height: 15),
                               Text(
                                 "Next: Farm type details",
@@ -352,7 +448,10 @@ class _FarmIrrigationState extends State<FarmIrrigation> {
                         ).animate().fadeIn(duration: 800.ms, delay: 500.ms),
                       ],
                     ),
-                  ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.05, end: 0),
+                  )
+                      .animate()
+                      .fadeIn(duration: 400.ms)
+                      .slideY(begin: 0.05, end: 0),
                 ),
               ],
             ),

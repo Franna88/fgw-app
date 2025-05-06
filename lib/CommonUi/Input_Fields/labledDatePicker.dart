@@ -33,7 +33,8 @@ class _LabeledDatePickerState extends State<LabeledDatePicker> {
     );
 
     if (picked != null) {
-      String formattedDate = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+      String formattedDate =
+          "${picked.day.toString().padLeft(2, '0')}/${picked.month.toString().padLeft(2, '0')}/${picked.year}";
       widget.controller.text = formattedDate;
       if (widget.validator != null) {
         setState(() {
@@ -71,7 +72,8 @@ class _LabeledDatePickerState extends State<LabeledDatePicker> {
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: Colors.grey[300]!),
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -94,7 +96,8 @@ class _LabeledDatePickerState extends State<LabeledDatePicker> {
               if (errorText != null) ...[
                 const SizedBox(height: 5),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: MyColors().offWhite,
                     borderRadius: BorderRadius.circular(4),

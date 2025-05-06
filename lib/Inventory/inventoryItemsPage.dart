@@ -14,7 +14,7 @@ import 'ui/add_inventory_item.dart';
 
 class InventoryItemsPage extends StatefulWidget {
   final String category;
-  
+
   const InventoryItemsPage({
     super.key,
     required this.category,
@@ -30,24 +30,24 @@ class _InventoryItemsPageState extends State<InventoryItemsPage> {
   List<InventoryItem> _items = [];
   List<InventoryItem> _filteredItems = [];
   bool _isLoading = true;
-  
+
   @override
   void initState() {
     super.initState();
     _loadItems();
   }
-  
+
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
   }
-  
+
   Future<void> _loadItems() async {
     setState(() {
       _isLoading = true;
     });
-    
+
     try {
       final items = await _inventoryService.getItemsByCategory(widget.category);
       setState(() {
@@ -67,18 +67,19 @@ class _InventoryItemsPageState extends State<InventoryItemsPage> {
           quantity: 10,
           unit: 'kg',
           dateAdded: DateTime.now(),
-          notes: 'Fallback item (data will be saved once SharedPreferences is working)',
+          notes:
+              'Fallback item (data will be saved once SharedPreferences is working)',
         ),
       ];
-      
+
       setState(() {
         _items = fallbackItems;
         _filteredItems = fallbackItems;
         _isLoading = false;
       });
-      
+
       if (!mounted) return;
-      
+
       // Show a non-error snackbar as guidance
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -101,7 +102,7 @@ class _InventoryItemsPageState extends State<InventoryItemsPage> {
       );
     }
   }
-  
+
   void _filterItems(String query) {
     if (query.isEmpty) {
       setState(() {
@@ -109,28 +110,30 @@ class _InventoryItemsPageState extends State<InventoryItemsPage> {
       });
       return;
     }
-    
+
     final lowercaseQuery = query.toLowerCase();
     setState(() {
       _filteredItems = _items.where((item) {
         return item.name.toLowerCase().contains(lowercaseQuery) ||
-               (item.notes?.toLowerCase().contains(lowercaseQuery) ?? false);
+            (item.notes?.toLowerCase().contains(lowercaseQuery) ?? false);
       }).toList();
     });
   }
-  
+
   Future<void> _updateItemQuantity(String itemId, int newQuantity) async {
     try {
-      final updatedItem = await _inventoryService.updateItemQuantity(itemId, newQuantity);
+      final updatedItem =
+          await _inventoryService.updateItemQuantity(itemId, newQuantity);
       if (updatedItem != null) {
         // Refresh just the item that changed
         setState(() {
           final index = _items.indexWhere((item) => item.id == itemId);
           if (index != -1) {
             _items[index] = updatedItem;
-            
+
             // Also update filtered items if needed
-            final filteredIndex = _filteredItems.indexWhere((item) => item.id == itemId);
+            final filteredIndex =
+                _filteredItems.indexWhere((item) => item.id == itemId);
             if (filteredIndex != -1) {
               _filteredItems[filteredIndex] = updatedItem;
             }
@@ -144,9 +147,10 @@ class _InventoryItemsPageState extends State<InventoryItemsPage> {
         final index = _items.indexWhere((item) => item.id == itemId);
         if (index != -1) {
           _items[index].quantity = newQuantity;
-          
+
           // Also update filtered items if needed
-          final filteredIndex = _filteredItems.indexWhere((item) => item.id == itemId);
+          final filteredIndex =
+              _filteredItems.indexWhere((item) => item.id == itemId);
           if (filteredIndex != -1) {
             _filteredItems[filteredIndex].quantity = newQuantity;
           }
@@ -154,7 +158,7 @@ class _InventoryItemsPageState extends State<InventoryItemsPage> {
       });
     }
   }
-  
+
   Future<void> _addNewItem() async {
     try {
       final result = await Navigator.push<bool>(
@@ -163,7 +167,7 @@ class _InventoryItemsPageState extends State<InventoryItemsPage> {
           builder: (context) => AddInventoryItem(category: widget.category),
         ),
       );
-      
+
       if (result == true) {
         _loadItems(); // Refresh the list
       }
@@ -182,7 +186,7 @@ class _InventoryItemsPageState extends State<InventoryItemsPage> {
   Widget build(BuildContext context) {
     final myColors = MyColors();
     final screenWidth = MediaQuery.of(context).size.width;
-    
+
     return Scaffold(
       backgroundColor: myColors.offWhite,
       body: SafeArea(
@@ -208,7 +212,6 @@ class _InventoryItemsPageState extends State<InventoryItemsPage> {
                 header: widget.category,
                 hasBackArrow: true,
               ).animate().fadeIn(duration: 300.ms),
-              
               Padding(
                 padding: const EdgeInsets.fromLTRB(15, 20, 15, 10),
                 child: Container(
@@ -256,7 +259,6 @@ class _InventoryItemsPageState extends State<InventoryItemsPage> {
                   ),
                 ),
               ),
-              
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(15, 5, 15, 15),
@@ -273,38 +275,49 @@ class _InventoryItemsPageState extends State<InventoryItemsPage> {
                         ),
                       ],
                     ),
-                    child: _isLoading 
-                      ? const Center(child: CircularProgressIndicator())
-                      : _filteredItems.isEmpty
-                        ? _buildEmptyState(myColors)
-                        : ClipRRect(
-                            borderRadius: BorderRadius.circular(16),
-                            child: ListView(
-                              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 0),
-                              children: [
-                                _buildInventoryHeader(myColors),
-                                ..._filteredItems.asMap().entries.map((entry) {
-                                  final index = entry.key;
-                                  final item = entry.value;
-                                  
-                                  return InventoryItems(
-                                    image: item.imageUrl,
-                                    name: item.name,
-                                    count: item.quantity,
-                                    unit: item.unit,
-                                    notes: item.notes,
-                                    onChanged: (newCount) => 
-                                        _updateItemQuantity(item.id, newCount),
-                                  ).animate().fadeIn(
-                                      duration: 300.ms, 
-                                      delay: Duration(milliseconds: 50 * index),
-                                  );
-                                }).toList(),
-                                const SizedBox(height: 10),
-                              ],
-                            ),
-                          ),
-                  ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
+                    child: _isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : _filteredItems.isEmpty
+                            ? _buildEmptyState(myColors)
+                            : ClipRRect(
+                                borderRadius: BorderRadius.circular(16),
+                                child: ListView(
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 10, horizontal: 0),
+                                  children: [
+                                    _buildInventoryHeader(myColors),
+                                    ..._filteredItems
+                                        .asMap()
+                                        .entries
+                                        .map((entry) {
+                                      final index = entry.key;
+                                      final item = entry.value;
+
+                                      return InventoryItems(
+                                        image: item.imageUrl,
+                                        name: item.name,
+                                        count: item.quantity,
+                                        unit: item.unit,
+                                        notes: item.notes,
+                                        unitCost: item.unitCost,
+                                        onChanged: (newQuantity) {
+                                          _updateItemQuantity(
+                                              item.id, newQuantity);
+                                        },
+                                      ).animate().fadeIn(
+                                            duration: 300.ms,
+                                            delay: Duration(
+                                                milliseconds: 50 * index),
+                                          );
+                                    }).toList(),
+                                    const SizedBox(height: 10),
+                                  ],
+                                ),
+                              ),
+                  )
+                      .animate()
+                      .fadeIn(duration: 400.ms)
+                      .slideY(begin: 0.1, end: 0),
                 ),
               ),
             ],
@@ -319,7 +332,7 @@ class _InventoryItemsPageState extends State<InventoryItemsPage> {
       ),
     );
   }
-  
+
   Widget _buildEmptyState(MyColors myColors) {
     return Center(
       child: Padding(
@@ -355,7 +368,7 @@ class _InventoryItemsPageState extends State<InventoryItemsPage> {
       ),
     );
   }
-  
+
   Widget _buildInventoryHeader(MyColors myColors) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),

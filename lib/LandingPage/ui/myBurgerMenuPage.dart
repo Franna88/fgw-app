@@ -15,6 +15,7 @@ import 'package:farming_gods_way/Tasks/tasksHome.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class MyBurgerMenuPage extends StatefulWidget {
   const MyBurgerMenuPage({super.key});
@@ -27,7 +28,7 @@ class _MyBurgerMenuPageState extends State<MyBurgerMenuPage> {
   @override
   Widget build(BuildContext context) {
     final myColors = MyColors();
-    
+
     return Material(
       child: Container(
         height: MyUtility(context).height,
@@ -69,11 +70,12 @@ class _MyBurgerMenuPageState extends State<MyBurgerMenuPage> {
                 ),
               ),
             ),
-            
+
             // Menu content
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 children: [
                   // User profile section
                   Container(
@@ -132,10 +134,13 @@ class _MyBurgerMenuPageState extends State<MyBurgerMenuPage> {
                         ),
                       ],
                     ),
-                  ).animate().fadeIn(duration: 400.ms).slideX(begin: -0.1, end: 0),
-                  
+                  )
+                      .animate()
+                      .fadeIn(duration: 400.ms)
+                      .slideX(begin: -0.1, end: 0),
+
                   const SizedBox(height: 24),
-                  
+
                   // Section: Farm Management
                   _buildSectionHeader('Farm Management'),
                   _buildMenuItem(
@@ -144,7 +149,8 @@ class _MyBurgerMenuPageState extends State<MyBurgerMenuPage> {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const FgwLandingPage()),
+                        MaterialPageRoute(
+                            builder: (context) => const FgwLandingPage()),
                       );
                     },
                     color: myColors.forestGreen,
@@ -156,7 +162,8 @@ class _MyBurgerMenuPageState extends State<MyBurgerMenuPage> {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const ProfileSettings()),
+                        MaterialPageRoute(
+                            builder: (context) => const ProfileSettings()),
                       );
                     },
                     color: myColors.forestGreen,
@@ -168,7 +175,8 @@ class _MyBurgerMenuPageState extends State<MyBurgerMenuPage> {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const TasksHome()),
+                        MaterialPageRoute(
+                            builder: (context) => const TasksHome()),
                       );
                     },
                     color: myColors.lightGreen,
@@ -180,7 +188,8 @@ class _MyBurgerMenuPageState extends State<MyBurgerMenuPage> {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const CropFields()),
+                        MaterialPageRoute(
+                            builder: (context) => const CropFields()),
                       );
                     },
                     color: myColors.green,
@@ -190,17 +199,31 @@ class _MyBurgerMenuPageState extends State<MyBurgerMenuPage> {
                     icon: FontAwesomeIcons.cow,
                     title: 'Animal Pens',
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const AnimalFields()),
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Coming Soon'),
+                          content: const Text('This feature is coming soon.'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              child: const Text('OK'),
+                            ),
+                          ],
+                        ),
                       );
+                      // Navigator.push(
+                      //   context,
+                      //   MaterialPageRoute(
+                      //       builder: (context) => const AnimalFields()),
+                      // );
                     },
                     color: myColors.yellow,
                     delay: 5,
                   ),
-                  
+
                   const SizedBox(height: 24),
-                  
+
                   // Section: Resources & Learning
                   _buildSectionHeader('Resources & Learning'),
                   _buildMenuItem(
@@ -209,7 +232,8 @@ class _MyBurgerMenuPageState extends State<MyBurgerMenuPage> {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const FarmersGuide()),
+                        MaterialPageRoute(
+                            builder: (context) => const FarmersGuide()),
                       );
                     },
                     color: myColors.lightBlue,
@@ -219,10 +243,24 @@ class _MyBurgerMenuPageState extends State<MyBurgerMenuPage> {
                     icon: FontAwesomeIcons.peopleGroup,
                     title: 'Mentor Programme',
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const MentorPage()),
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Coming Soon'),
+                          content: const Text('This feature is coming soon.'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              child: const Text('OK'),
+                            ),
+                          ],
+                        ),
                       );
+                      // Navigator.push(
+                      //   context,
+                      //   MaterialPageRoute(
+                      //       builder: (context) => const MentorPage()),
+                      // );
                     },
                     color: myColors.lightGreen,
                     delay: 7,
@@ -231,17 +269,31 @@ class _MyBurgerMenuPageState extends State<MyBurgerMenuPage> {
                     icon: FontAwesomeIcons.comments,
                     title: 'Farmhouse Forum',
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const ForumTopicList()),
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Coming Soon'),
+                          content: const Text('This feature is coming soon.'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              child: const Text('OK'),
+                            ),
+                          ],
+                        ),
                       );
+                      // Navigator.push(
+                      //   context,
+                      //   MaterialPageRoute(
+                      //       builder: (context) => const ForumTopicList()),
+                      // );
                     },
                     color: myColors.forestGreen,
                     delay: 8,
                   ),
-                  
+
                   const SizedBox(height: 24),
-                  
+
                   // Section: Tools & Utilities
                   _buildSectionHeader('Tools & Utilities'),
                   _buildMenuItem(
@@ -250,7 +302,8 @@ class _MyBurgerMenuPageState extends State<MyBurgerMenuPage> {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const Inventory()),
+                        MaterialPageRoute(
+                            builder: (context) => const Inventory()),
                       );
                     },
                     color: myColors.yellow,
@@ -260,25 +313,46 @@ class _MyBurgerMenuPageState extends State<MyBurgerMenuPage> {
                     icon: Icons.message,
                     title: 'Messages',
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const Messages()),
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Coming Soon'),
+                          content: const Text('This feature is coming soon.'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              child: const Text('OK'),
+                            ),
+                          ],
+                        ),
                       );
+                      // Navigator.push(
+                      //   context,
+                      //   MaterialPageRoute(
+                      //       builder: (context) => const Messages()),
+                      // );
                     },
                     color: myColors.lightBlue,
                     delay: 10,
                     showBadge: true,
                   ),
-                  
+
                   const SizedBox(height: 40),
-                  
+
                   // Logout button
                   ElevatedButton.icon(
-                    onPressed: () {
-                      // TODO: Logout functionality
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Logout functionality not implemented yet')),
-                      );
+                    onPressed: () async {
+                      try {
+                        await FirebaseAuth.instance.signOut();
+                        if (mounted) {
+                          Navigator.of(context)
+                              .popUntil((route) => route.isFirst);
+                        }
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Logout failed: $e')),
+                        );
+                      }
                     },
                     icon: const Icon(Icons.logout),
                     label: const Text('Logout'),
@@ -296,7 +370,7 @@ class _MyBurgerMenuPageState extends State<MyBurgerMenuPage> {
       ),
     );
   }
-  
+
   Widget _buildSectionHeader(String title) {
     return Padding(
       padding: const EdgeInsets.only(left: 8, bottom: 12),
@@ -311,7 +385,7 @@ class _MyBurgerMenuPageState extends State<MyBurgerMenuPage> {
       ),
     ).animate().fadeIn(duration: 400.ms);
   }
-  
+
   Widget _buildMenuItem({
     required IconData icon,
     required String title,
@@ -356,7 +430,8 @@ class _MyBurgerMenuPageState extends State<MyBurgerMenuPage> {
                 ),
                 if (showBadge)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: MyColors().red,
                       borderRadius: BorderRadius.circular(12),
@@ -381,7 +456,10 @@ class _MyBurgerMenuPageState extends State<MyBurgerMenuPage> {
           ),
         ),
       ),
-    ).animate().fadeIn(duration: 400.ms, delay: 100.ms * delay.toDouble())
-      .slideX(begin: -0.1, end: 0, duration: 300.ms, curve: Curves.easeOutQuad);
+    )
+        .animate()
+        .fadeIn(duration: 400.ms, delay: 100.ms * delay.toDouble())
+        .slideX(
+            begin: -0.1, end: 0, duration: 300.ms, curve: Curves.easeOutQuad);
   }
 }

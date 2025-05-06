@@ -56,7 +56,7 @@ class _FgwLandingPageState extends State<FgwLandingPage> {
     super.initState();
     _fetchWeather();
     _currentVerse = _getRandomText();
-    
+
     // Simulate loading for demo purposes
     Future.delayed(const Duration(seconds: 1), () {
       if (mounted) {
@@ -87,7 +87,7 @@ class _FgwLandingPageState extends State<FgwLandingPage> {
     final myColors = MyColors();
     final today = DateTime.now();
     final dateFormat = DateFormat('EEEE, MMMM d, yyyy');
-    
+
     return Scaffold(
       backgroundColor: myColors.forestGreen,
       body: SafeArea(
@@ -96,7 +96,7 @@ class _FgwLandingPageState extends State<FgwLandingPage> {
           children: [
             // Top bar
             const FgwTopBar(),
-            
+
             // Main content
             Expanded(
               child: RefreshIndicator(
@@ -106,7 +106,7 @@ class _FgwLandingPageState extends State<FgwLandingPage> {
                     _currentVerse = _getRandomText();
                   });
                   await _fetchWeather();
-                  
+
                   // Simulate loading for demo purposes
                   await Future.delayed(const Duration(seconds: 1));
                   if (mounted) {
@@ -120,7 +120,8 @@ class _FgwLandingPageState extends State<FgwLandingPage> {
                   children: [
                     // Date display
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 8),
                       child: Row(
                         children: [
                           const FaIcon(
@@ -140,9 +141,9 @@ class _FgwLandingPageState extends State<FgwLandingPage> {
                         ],
                       ),
                     ),
-                    
+
                     const SizedBox(height: 8),
-                    
+
                     // Weather card
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -150,120 +151,129 @@ class _FgwLandingPageState extends State<FgwLandingPage> {
                         height: 130,
                         color: myColors.lightBlue.withOpacity(0.9),
                         borderRadius: BorderRadius.circular(16),
-                        child: _isLoading 
-                          ? const Center(child: CircularProgressIndicator())
-                          : Row(
-                              children: [
-                                // Weather icon and temperature
-                                Expanded(
-                                  flex: 3,
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      _weather != null 
-                                        ? Icon(
-                                            _getWeatherIcon(_weather!.weatherMain ?? ''),
-                                            size: 42,
+                        child: _isLoading
+                            ? const Center(child: CircularProgressIndicator())
+                            : Row(
+                                children: [
+                                  // Weather icon and temperature
+                                  Expanded(
+                                    flex: 3,
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        _weather != null
+                                            ? Icon(
+                                                _getWeatherIcon(
+                                                    _weather!.weatherMain ??
+                                                        ''),
+                                                size: 42,
+                                                color: Colors.white,
+                                              )
+                                            : const SizedBox.shrink(),
+                                        const SizedBox(height: 8),
+                                        _weather != null
+                                            ? Text(
+                                                '${_weather?.temperature?.celsius?.toStringAsFixed(1)}°C',
+                                                style: GoogleFonts.robotoSlab(
+                                                  fontSize: 22,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.white,
+                                                ),
+                                              )
+                                            : Text(
+                                                'No data',
+                                                style: GoogleFonts.robotoSlab(
+                                                  fontSize: 16,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                      ],
+                                    ),
+                                  ),
+
+                                  // Weather details
+                                  Expanded(
+                                    flex: 5,
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          _weather?.areaName ?? 'Location',
+                                          style: GoogleFonts.robotoSlab(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
                                             color: Colors.white,
-                                          )
-                                        : const SizedBox.shrink(),
-                                      const SizedBox(height: 8),
-                                      _weather != null
-                                        ? Text(
-                                            '${_weather?.temperature?.celsius?.toStringAsFixed(1)}°C',
-                                            style: GoogleFonts.robotoSlab(
-                                              fontSize: 22,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.white,
-                                            ),
-                                          )
-                                        : Text(
-                                            'No data',
-                                            style: GoogleFonts.robotoSlab(
-                                              fontSize: 16,
-                                              color: Colors.white,
-                                            ),
                                           ),
-                                    ],
-                                  ),
-                                ),
-                                
-                                // Weather details
-                                Expanded(
-                                  flex: 5,
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text(
-                                        _weather?.areaName ?? 'Location',
-                                        style: GoogleFonts.robotoSlab(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white,
                                         ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        _weather?.weatherDescription?.toUpperCase() ?? 'Weather information',
-                                        style: GoogleFonts.robotoSlab(
-                                          fontSize: 14,
-                                          color: Colors.white,
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          _weather?.weatherDescription
+                                                  ?.toUpperCase() ??
+                                              'Weather information',
+                                          style: GoogleFonts.robotoSlab(
+                                            fontSize: 14,
+                                            color: Colors.white,
+                                          ),
                                         ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: Row(
-                                              children: [
-                                                const FaIcon(
-                                                  FontAwesomeIcons.wind,
-                                                  size: 12,
-                                                  color: Colors.white,
-                                                ),
-                                                const SizedBox(width: 4),
-                                                Text(
-                                                  '${_weather?.windSpeed?.toStringAsFixed(1) ?? "0"} m/s',
-                                                  style: GoogleFonts.robotoSlab(
-                                                    fontSize: 12,
+                                        const SizedBox(height: 8),
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Row(
+                                                children: [
+                                                  const FaIcon(
+                                                    FontAwesomeIcons.wind,
+                                                    size: 12,
                                                     color: Colors.white,
                                                   ),
-                                                ),
-                                              ],
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    '${_weather?.windSpeed?.toStringAsFixed(1) ?? "0"} m/s',
+                                                    style:
+                                                        GoogleFonts.robotoSlab(
+                                                      fontSize: 12,
+                                                      color: Colors.white,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
                                             ),
-                                          ),
-                                          Expanded(
-                                            child: Row(
-                                              children: [
-                                                const FaIcon(
-                                                  FontAwesomeIcons.droplet,
-                                                  size: 12,
-                                                  color: Colors.white,
-                                                ),
-                                                const SizedBox(width: 4),
-                                                Text(
-                                                  '${_weather?.humidity ?? "0"}%',
-                                                  style: GoogleFonts.robotoSlab(
-                                                    fontSize: 12,
+                                            Expanded(
+                                              child: Row(
+                                                children: [
+                                                  const FaIcon(
+                                                    FontAwesomeIcons.droplet,
+                                                    size: 12,
                                                     color: Colors.white,
                                                   ),
-                                                ),
-                                              ],
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    '${_weather?.humidity ?? "0"}%',
+                                                    style:
+                                                        GoogleFonts.robotoSlab(
+                                                      fontSize: 12,
+                                                      color: Colors.white,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
                                             ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
+                                          ],
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
+                                ],
+                              ),
                       ),
                     ),
-                    
+
                     const SizedBox(height: 20),
-                    
+
                     // Daily verse
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -304,17 +314,17 @@ class _FgwLandingPageState extends State<FgwLandingPage> {
                         ),
                       ),
                     ),
-                    
+
                     const SizedBox(height: 20),
-                    
+
                     // Today's task progress
                     const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 20),
                       child: TodayTaskProggress(),
                     ),
-                    
+
                     const SizedBox(height: 24),
-                    
+
                     // Quick Links
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -332,7 +342,7 @@ class _FgwLandingPageState extends State<FgwLandingPage> {
                               ),
                             ),
                           ),
-                          
+
                           // Grid of quick links
                           GridView.count(
                             shrinkWrap: true,
@@ -343,26 +353,26 @@ class _FgwLandingPageState extends State<FgwLandingPage> {
                             crossAxisSpacing: 12,
                             children: [
                               _buildQuickLink(
-                                'Tasks', 
-                                FontAwesomeIcons.listCheck, 
+                                'Tasks',
+                                FontAwesomeIcons.listCheck,
                                 myColors.yellow,
                                 () {},
                               ),
                               _buildQuickLink(
-                                'Fields', 
-                                FontAwesomeIcons.leaf, 
+                                'Fields',
+                                FontAwesomeIcons.leaf,
                                 myColors.lightGreen,
                                 () {},
                               ),
                               _buildQuickLink(
-                                'Animals', 
-                                FontAwesomeIcons.cow, 
+                                'Animals',
+                                FontAwesomeIcons.cow,
                                 myColors.offWhite,
                                 () {},
                               ),
                               _buildQuickLink(
-                                'Inventory', 
-                                FontAwesomeIcons.boxesStacked, 
+                                'Inventory',
+                                FontAwesomeIcons.boxesStacked,
                                 myColors.lightBlue,
                                 () {},
                               ),
@@ -371,7 +381,7 @@ class _FgwLandingPageState extends State<FgwLandingPage> {
                         ],
                       ),
                     ),
-                    
+
                     const SizedBox(height: 20),
                   ],
                 ),
@@ -382,8 +392,9 @@ class _FgwLandingPageState extends State<FgwLandingPage> {
       ),
     );
   }
-  
-  Widget _buildQuickLink(String title, IconData icon, Color color, VoidCallback onTap) {
+
+  Widget _buildQuickLink(
+      String title, IconData icon, Color color, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -397,9 +408,11 @@ class _FgwLandingPageState extends State<FgwLandingPage> {
           child: Row(
             children: [
               FaIcon(
-                icon, 
+                icon,
                 size: 16,
-                color: color == MyColors().offWhite ? MyColors().black : Colors.black87,
+                color: color == MyColors().offWhite
+                    ? MyColors().black
+                    : Colors.black87,
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -408,7 +421,9 @@ class _FgwLandingPageState extends State<FgwLandingPage> {
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
-                    color: color == MyColors().offWhite ? MyColors().black : Colors.black87,
+                    color: color == MyColors().offWhite
+                        ? MyColors().black
+                        : Colors.black87,
                   ),
                 ),
               ),
@@ -416,9 +431,10 @@ class _FgwLandingPageState extends State<FgwLandingPage> {
           ),
         ),
       ),
-    ).animate().fadeIn(duration: 400.ms, delay: 200.ms).slideY(begin: 0.2, end: 0, duration: 400.ms, curve: Curves.easeOutQuad);
+    ).animate().fadeIn(duration: 400.ms, delay: 200.ms).slideY(
+        begin: 0.2, end: 0, duration: 400.ms, curve: Curves.easeOutQuad);
   }
-  
+
   IconData _getWeatherIcon(String condition) {
     switch (condition.toLowerCase()) {
       case 'clear':

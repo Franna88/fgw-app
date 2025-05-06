@@ -31,16 +31,16 @@ class _AddInventoryItemState extends State<AddInventoryItem> {
   final _quantityController = TextEditingController();
   final _notesController = TextEditingController();
   final _costController = TextEditingController();
-  
+
   String _selectedUnit = 'kg';
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
   File? _imageFile;
-  
+
   final _inventoryService = InventoryService();
   final _imagePicker = ImagePicker();
   final List<String> _units = ['kg', 'g', 'ton', 'pcs', 'l', 'ml', 'bags'];
-  
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -58,7 +58,7 @@ class _AddInventoryItemState extends State<AddInventoryItem> {
         maxHeight: 800,
         imageQuality: 85,
       );
-      
+
       if (pickedFile != null) {
         setState(() {
           _imageFile = File(pickedFile.path);
@@ -76,23 +76,24 @@ class _AddInventoryItemState extends State<AddInventoryItem> {
       );
     }
   }
-  
+
   Future<void> _saveItem() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
-    
+
     setState(() {
       _isLoading = true;
     });
-    
+
     try {
       // Default image paths based on category
-      final String imagePath = _imageFile?.path ?? 'images/${widget.category.toLowerCase()}.png';
-      
+      final String imagePath =
+          _imageFile?.path ?? 'images/${widget.category.toLowerCase()}.png';
+
       final quantity = int.tryParse(_quantityController.text) ?? 0;
       final cost = double.tryParse(_costController.text);
-      
+
       await _inventoryService.addItem(
         name: _nameController.text,
         category: widget.category,
@@ -102,9 +103,9 @@ class _AddInventoryItemState extends State<AddInventoryItem> {
         unitCost: cost,
         notes: _notesController.text,
       );
-      
+
       if (!mounted) return;
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -115,11 +116,11 @@ class _AddInventoryItemState extends State<AddInventoryItem> {
           behavior: SnackBarBehavior.floating,
         ),
       );
-      
+
       Navigator.pop(context, true); // Return success
     } catch (e) {
       if (!mounted) return;
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -143,7 +144,7 @@ class _AddInventoryItemState extends State<AddInventoryItem> {
   Widget build(BuildContext context) {
     final myColors = MyColors();
     final screenWidth = MediaQuery.of(context).size.width;
-    
+
     return Scaffold(
       backgroundColor: myColors.offWhite,
       body: SafeArea(
@@ -167,29 +168,28 @@ class _AddInventoryItemState extends State<AddInventoryItem> {
                 header: 'Add ${widget.category} Item',
                 hasBackArrow: true,
               ).animate().fadeIn(duration: 300.ms),
-              
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
                   child: Form(
                     key: _formKey,
                     child: _buildItemForm(myColors, screenWidth),
                   ),
                 ),
               ),
-              
               Padding(
                 padding: const EdgeInsets.all(20),
-                child: _isLoading 
-                  ? const CircularProgressIndicator() 
-                  : CommonButton(
-                      customWidth: screenWidth * 0.5,
-                      customHeight: 50,
-                      buttonText: 'Save Item',
-                      buttonColor: myColors.yellow,
-                      textColor: myColors.black,
-                      onTap: _saveItem,
-                    ),
+                child: _isLoading
+                    ? const CircularProgressIndicator()
+                    : CommonButton(
+                        customWidth: screenWidth * 0.5,
+                        customHeight: 50,
+                        buttonText: 'Save Item',
+                        buttonColor: myColors.yellow,
+                        textColor: myColors.black,
+                        onTap: _saveItem,
+                      ),
               ),
             ],
           ),
@@ -197,7 +197,7 @@ class _AddInventoryItemState extends State<AddInventoryItem> {
       ),
     );
   }
-  
+
   Widget _buildItemForm(MyColors myColors, double screenWidth) {
     return Container(
       width: screenWidth,
@@ -234,7 +234,7 @@ class _AddInventoryItemState extends State<AddInventoryItem> {
                 ),
               ],
             ),
-            
+
             const SizedBox(height: 12),
             const Divider(),
             const SizedBox(height: 16),
@@ -290,20 +290,20 @@ class _AddInventoryItemState extends State<AddInventoryItem> {
                 ),
               ],
             ),
-            
+
             const SizedBox(height: 20),
-            
+
             LabeledTextField(
               label: 'Item Name*',
               hintText: 'Enter item name',
               controller: _nameController,
-              validator: (value) => value == null || value.isEmpty 
-                  ? 'Please enter an item name' 
+              validator: (value) => value == null || value.isEmpty
+                  ? 'Please enter an item name'
                   : null,
             ),
-            
+
             const SizedBox(height: 20),
-            
+
             Row(
               children: [
                 Expanded(
@@ -343,27 +343,27 @@ class _AddInventoryItemState extends State<AddInventoryItem> {
                 ),
               ],
             ),
-            
+
             const SizedBox(height: 20),
-            
+
             LabeledTextField(
               label: 'Unit Cost (optional)',
               hintText: 'Enter cost per unit',
               controller: _costController,
               keyboardType: TextInputType.number,
             ),
-            
+
             const SizedBox(height: 20),
-            
+
             LabeledTextField(
               label: 'Notes (optional)',
               hintText: 'Enter additional details',
               controller: _notesController,
               lines: 3,
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -410,7 +410,7 @@ class _AddInventoryItemState extends State<AddInventoryItem> {
       ),
     ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.2, end: 0);
   }
-  
+
   Widget _buildImagePreview(MyColors myColors) {
     return Container(
       width: 100,
@@ -450,7 +450,7 @@ class _AddInventoryItemState extends State<AddInventoryItem> {
             ),
     );
   }
-  
+
   IconData _getCategoryIcon() {
     switch (widget.category.toLowerCase()) {
       case 'crops':
@@ -471,4 +471,4 @@ class _AddInventoryItemState extends State<AddInventoryItem> {
         return FontAwesomeIcons.box;
     }
   }
-} 
+}

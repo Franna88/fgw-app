@@ -10,7 +10,8 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class CropFieldView extends StatefulWidget {
-  final Map<String, String> field;
+  final Map<String, dynamic> field;
+
   const CropFieldView({super.key, required this.field});
 
   @override
@@ -21,14 +22,13 @@ class _CropFieldViewState extends State<CropFieldView> {
   @override
   Widget build(BuildContext context) {
     final myColors = MyColors();
-    
+
     return Scaffold(
       backgroundColor: myColors.forestGreen,
       body: SafeArea(
         child: Column(
           children: [
             FgwTopBar(title: widget.field['name'] ?? 'Field Details'),
-            
             Expanded(
               child: Container(
                 width: double.infinity,
@@ -59,7 +59,7 @@ class _CropFieldViewState extends State<CropFieldView> {
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(16),
                           image: DecorationImage(
-                            image: AssetImage(widget.field['image']!),
+                            image: NetworkImage(widget.field['imageUrl']),
                             fit: BoxFit.cover,
                           ),
                           boxShadow: [
@@ -70,10 +70,12 @@ class _CropFieldViewState extends State<CropFieldView> {
                             ),
                           ],
                         ),
-                      ).animate().fadeIn(duration: 400.ms).scale(begin: const Offset(0.95, 0.95), end: const Offset(1.0, 1.0)),
-                      
+                      ).animate().fadeIn(duration: 400.ms).scale(
+                          begin: const Offset(0.95, 0.95),
+                          end: const Offset(1.0, 1.0)),
+
                       const SizedBox(height: 24),
-                      
+
                       // Info section
                       Container(
                         padding: const EdgeInsets.all(16),
@@ -112,9 +114,9 @@ class _CropFieldViewState extends State<CropFieldView> {
                           ],
                         ),
                       ).animate().fadeIn(duration: 400.ms, delay: 100.ms),
-                      
+
                       const SizedBox(height: 24),
-                      
+
                       // Management section title
                       Text(
                         'Field Management',
@@ -123,9 +125,9 @@ class _CropFieldViewState extends State<CropFieldView> {
                           fontWeight: FontWeight.bold,
                         ),
                       ).animate().fadeIn(duration: 400.ms, delay: 200.ms),
-                      
+
                       const SizedBox(height: 16),
-                      
+
                       // Management options
                       _buildManagementCard(
                         icon: FontAwesomeIcons.objectGroup,
@@ -136,12 +138,16 @@ class _CropFieldViewState extends State<CropFieldView> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const FarmPortionsPage(),
+                              builder: (context) =>
+                                  FarmPortionsPage(field: widget.field),
                             ),
                           );
                         },
-                      ).animate().fadeIn(duration: 400.ms, delay: 300.ms).slideX(begin: -0.1, end: 0),
-                      
+                      )
+                          .animate()
+                          .fadeIn(duration: 400.ms, delay: 300.ms)
+                          .slideX(begin: -0.1, end: 0),
+
                       _buildManagementCard(
                         icon: FontAwesomeIcons.bell,
                         title: 'Reminders',
@@ -155,8 +161,11 @@ class _CropFieldViewState extends State<CropFieldView> {
                             ),
                           );
                         },
-                      ).animate().fadeIn(duration: 400.ms, delay: 400.ms).slideX(begin: -0.1, end: 0),
-                      
+                      )
+                          .animate()
+                          .fadeIn(duration: 400.ms, delay: 400.ms)
+                          .slideX(begin: -0.1, end: 0),
+
                       _buildManagementCard(
                         icon: FontAwesomeIcons.chartLine,
                         title: 'Production Records',
@@ -170,8 +179,11 @@ class _CropFieldViewState extends State<CropFieldView> {
                             ),
                           );
                         },
-                      ).animate().fadeIn(duration: 400.ms, delay: 500.ms).slideX(begin: -0.1, end: 0),
-                      
+                      )
+                          .animate()
+                          .fadeIn(duration: 400.ms, delay: 500.ms)
+                          .slideX(begin: -0.1, end: 0),
+
                       _buildManagementCard(
                         icon: FontAwesomeIcons.boxesStacked,
                         title: 'Inventory',
@@ -185,10 +197,13 @@ class _CropFieldViewState extends State<CropFieldView> {
                             ),
                           );
                         },
-                      ).animate().fadeIn(duration: 400.ms, delay: 600.ms).slideX(begin: -0.1, end: 0),
-                      
+                      )
+                          .animate()
+                          .fadeIn(duration: 400.ms, delay: 600.ms)
+                          .slideX(begin: -0.1, end: 0),
+
                       const SizedBox(height: 24),
-                      
+
                       // Settings button
                       SizedBox(
                         width: double.infinity,
@@ -213,7 +228,7 @@ class _CropFieldViewState extends State<CropFieldView> {
                           ),
                         ),
                       ).animate().fadeIn(duration: 400.ms, delay: 700.ms),
-                      
+
                       const SizedBox(height: 30),
                     ],
                   ),
@@ -225,7 +240,7 @@ class _CropFieldViewState extends State<CropFieldView> {
       ),
     );
   }
-  
+
   Widget _buildInfoRow({
     required IconData icon,
     required String label,
@@ -257,7 +272,7 @@ class _CropFieldViewState extends State<CropFieldView> {
       ],
     );
   }
-  
+
   Widget _buildManagementCard({
     required IconData icon,
     required String title,

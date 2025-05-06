@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../CommonUi/cornerHeaderContainer.dart';
 import '../../Constants/colors.dart';
@@ -36,6 +37,30 @@ class _AddProductionRecordState extends State<AddProductionRecord> {
     'Pumpkin'
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    // Verify user authentication
+    _checkUserAuth();
+  }
+
+  void _checkUserAuth() {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      // Handle not logged in - we'll show a message and pop back in the next frame
+      Future.microtask(() {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('You must be logged in to add production records'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        Navigator.of(context).pop();
+      });
+    }
+  }
+
   bool _isFormValid() {
     return entryDate.text.isNotEmpty &&
         selectedProduct != null &&
@@ -44,13 +69,20 @@ class _AddProductionRecordState extends State<AddProductionRecord> {
 
   void _saveRecord() {
     if (_isFormValid()) {
+      // Parse the date string to get components
+      final dateParts = entryDate.text.split(' ');
+      final day = int.parse(dateParts[0]);
+      final month = _getMonthNumber(dateParts[1].replaceAll(',', ''));
+      final year = int.parse(dateParts[2]);
+
       final newRecord = {
         'date': entryDate.text,
         'product': selectedProduct!,
         'productQuantity': '${productQuantity.text} ${quantityUnit.text}',
       };
+
       Navigator.pop(context, newRecord);
-      
+
       // Show success snackbar if we weren't popping
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -83,10 +115,12 @@ class _AddProductionRecordState extends State<AddProductionRecord> {
                 'images/loginImg.png',
                 repeat: ImageRepeat.repeat,
                 fit: BoxFit.cover,
+                width: double.infinity,
+                height: double.infinity,
               ),
             ),
           ),
-          
+
           // Main content
           SafeArea(
             child: Column(
@@ -94,7 +128,8 @@ class _AddProductionRecordState extends State<AddProductionRecord> {
               children: [
                 // Header section
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
                   child: Row(
                     children: [
                       IconButton(
@@ -128,9 +163,9 @@ class _AddProductionRecordState extends State<AddProductionRecord> {
                     ],
                   ),
                 ),
-                
+
                 const SizedBox(height: 10),
-                
+
                 // Form container
                 Expanded(
                   child: Container(
@@ -173,17 +208,21 @@ class _AddProductionRecordState extends State<AddProductionRecord> {
                                 ),
                               ),
                             ],
-                          ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
-                          
+                          )
+                              .animate()
+                              .fadeIn(duration: 400.ms)
+                              .slideY(begin: 0.1, end: 0),
+
                           const SizedBox(height: 25),
-                          
+
                           // Date picker
                           _buildFormField(
                             title: "Entry Date",
                             description: "When was the harvest collected?",
                             child: InkWell(
                               onTap: () async {
-                                final DateTime? pickedDate = await showDatePicker(
+                                final DateTime? pickedDate =
+                                    await showDatePicker(
                                   context: context,
                                   initialDate: DateTime.now(),
                                   firstDate: DateTime(2020),
@@ -200,15 +239,17 @@ class _AddProductionRecordState extends State<AddProductionRecord> {
                                     );
                                   },
                                 );
-                                
+
                                 if (pickedDate != null) {
                                   setState(() {
-                                    entryDate.text = "${pickedDate.day} ${_getMonthName(pickedDate.month)}, ${pickedDate.year}";
+                                    entryDate.text =
+                                        "${pickedDate.day} ${_getMonthName(pickedDate.month)}, ${pickedDate.year}";
                                   });
                                 }
                               },
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 15),
                                 decoration: BoxDecoration(
                                   color: Colors.grey[100],
                                   borderRadius: BorderRadius.circular(12),
@@ -244,15 +285,16 @@ class _AddProductionRecordState extends State<AddProductionRecord> {
                               ),
                             ),
                           ),
-                          
+
                           const SizedBox(height: 20),
-                          
+
                           // Product dropdown
                           _buildFormField(
                             title: "Product",
                             description: "What product was harvested?",
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 5),
                               decoration: BoxDecoration(
                                 color: Colors.grey[100],
                                 borderRadius: BorderRadius.circular(12),
@@ -294,9 +336,9 @@ class _AddProductionRecordState extends State<AddProductionRecord> {
                               ),
                             ),
                           ),
-                          
+
                           const SizedBox(height: 20),
-                          
+
                           // Quantity field
                           _buildFormField(
                             title: "Product Quantity",
@@ -318,17 +360,22 @@ class _AddProductionRecordState extends State<AddProductionRecord> {
                                       fillColor: Colors.grey[100],
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(12),
-                                        borderSide: BorderSide(color: Colors.grey[300]!),
+                                        borderSide: BorderSide(
+                                            color: Colors.grey[300]!),
                                       ),
                                       enabledBorder: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(12),
-                                        borderSide: BorderSide(color: Colors.grey[300]!),
+                                        borderSide: BorderSide(
+                                            color: Colors.grey[300]!),
                                       ),
                                       focusedBorder: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(12),
-                                        borderSide: BorderSide(color: MyColors().forestGreen),
+                                        borderSide: BorderSide(
+                                            color: MyColors().forestGreen),
                                       ),
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                              horizontal: 16, vertical: 15),
                                     ),
                                   ),
                                 ),
@@ -347,26 +394,31 @@ class _AddProductionRecordState extends State<AddProductionRecord> {
                                       fillColor: Colors.grey[100],
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(12),
-                                        borderSide: BorderSide(color: Colors.grey[300]!),
+                                        borderSide: BorderSide(
+                                            color: Colors.grey[300]!),
                                       ),
                                       enabledBorder: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(12),
-                                        borderSide: BorderSide(color: Colors.grey[300]!),
+                                        borderSide: BorderSide(
+                                            color: Colors.grey[300]!),
                                       ),
                                       focusedBorder: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(12),
-                                        borderSide: BorderSide(color: MyColors().forestGreen),
+                                        borderSide: BorderSide(
+                                            color: MyColors().forestGreen),
                                       ),
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                              horizontal: 16, vertical: 15),
                                     ),
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          
+
                           const SizedBox(height: 40),
-                          
+
                           // Save button
                           SizedBox(
                             width: double.infinity,
@@ -375,7 +427,8 @@ class _AddProductionRecordState extends State<AddProductionRecord> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: MyColors().forestGreen,
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -394,7 +447,10 @@ class _AddProductionRecordState extends State<AddProductionRecord> {
                         ],
                       ),
                     ),
-                  ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.05, end: 0),
+                  )
+                      .animate()
+                      .fadeIn(duration: 400.ms)
+                      .slideY(begin: 0.05, end: 0),
                 ),
               ],
             ),
@@ -403,7 +459,7 @@ class _AddProductionRecordState extends State<AddProductionRecord> {
       ),
     );
   }
-  
+
   Widget _buildFormField({
     required String title,
     required String description,
@@ -431,9 +487,12 @@ class _AddProductionRecordState extends State<AddProductionRecord> {
         const SizedBox(height: 10),
         child,
       ],
-    ).animate().fadeIn(duration: 500.ms, delay: 100.ms).slideY(begin: 0.1, end: 0);
+    )
+        .animate()
+        .fadeIn(duration: 500.ms, delay: 100.ms)
+        .slideY(begin: 0.1, end: 0);
   }
-  
+
   String _getMonthName(int month) {
     const List<String> months = [
       'January',
@@ -450,5 +509,23 @@ class _AddProductionRecordState extends State<AddProductionRecord> {
       'December'
     ];
     return months[month - 1];
+  }
+
+  int _getMonthNumber(String monthName) {
+    const List<String> months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December'
+    ];
+    return months.indexOf(monthName) + 1;
   }
 }

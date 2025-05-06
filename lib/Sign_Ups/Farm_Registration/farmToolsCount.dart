@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:provider/provider.dart';
+import 'package:farming_gods_way/services/user_provider.dart';
+import 'package:farming_gods_way/services/firebase_service.dart';
 
 import '../../CommonUi/Buttons/commonButton.dart';
 import '../../CommonUi/Buttons/counterWidget.dart';
@@ -35,7 +38,7 @@ class _FarmToolsCountState extends State<FarmToolsCount> {
     'Shovel': true,
     'Tractor': true,
   };
-  
+
   final Map<String, IconData> toolIcons = {
     'Hoe': FontAwesomeIcons.screwdriverWrench,
     'Trowel': FontAwesomeIcons.trowelBricks,
@@ -44,6 +47,77 @@ class _FarmToolsCountState extends State<FarmToolsCount> {
     'Shovel': FontAwesomeIcons.spoon,
     'Tractor': FontAwesomeIcons.tractor,
   };
+
+  bool isLoading = false;
+
+  void _continueToSoilInfo() async {
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      // Get the farmId from provider
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final farmId = userProvider.registrationData['farmId'];
+
+      if (farmId != null) {
+        // Filter selected tools
+        final Map<String, int> selectedToolsCount = {};
+
+        for (var toolName in tools.keys) {
+          if (selectedTools[toolName] == true) {
+            selectedToolsCount[toolName] = tools[toolName]!;
+          }
+        }
+
+        // Save tools data
+        final toolsData = {
+          'tools': selectedToolsCount,
+          'selectedTools': selectedTools,
+          'registrationStep': 'tools',
+          'updatedAt': DateTime.now().toIso8601String(),
+        };
+
+        // Store in provider
+        userProvider.storeRegistrationData(toolsData);
+
+        // Update in Firestore
+        await FirebaseService.firestore
+            .collection('farms')
+            .doc(farmId)
+            .update(toolsData);
+
+        // Proceed to next step
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const FarmSoil(),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content:
+                Text('Farm ID not found. Please restart farm registration.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error saving tools data: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -62,7 +136,7 @@ class _FarmToolsCountState extends State<FarmToolsCount> {
               ),
             ),
           ),
-          
+
           // Main content
           SafeArea(
             child: Column(
@@ -70,7 +144,8 @@ class _FarmToolsCountState extends State<FarmToolsCount> {
               children: [
                 // Header section
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
                   child: Row(
                     children: [
                       IconButton(
@@ -104,10 +179,11 @@ class _FarmToolsCountState extends State<FarmToolsCount> {
                     ],
                   ),
                 ),
-                
+
                 // Progress indicator
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
                   child: Container(
                     height: 4,
                     decoration: BoxDecoration(
@@ -138,14 +214,15 @@ class _FarmToolsCountState extends State<FarmToolsCount> {
                     ),
                   ).animate().fadeIn(delay: 300.ms),
                 ),
-                
+
                 const SizedBox(height: 10),
-                
+
                 // Form content
                 Expanded(
                   child: Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 30),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 25, vertical: 30),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: const BorderRadius.only(
@@ -171,10 +248,13 @@ class _FarmToolsCountState extends State<FarmToolsCount> {
                             fontWeight: FontWeight.w600,
                             color: Colors.black87,
                           ),
-                        ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
-                        
+                        )
+                            .animate()
+                            .fadeIn(duration: 400.ms)
+                            .slideY(begin: 0.1, end: 0),
+
                         const SizedBox(height: 10),
-                        
+
                         // Description
                         Text(
                           "Select the tools you have and specify their quantity",
@@ -182,10 +262,13 @@ class _FarmToolsCountState extends State<FarmToolsCount> {
                             fontSize: 14,
                             color: Colors.grey[600],
                           ),
-                        ).animate().fadeIn(duration: 400.ms, delay: 100.ms).slideY(begin: 0.1, end: 0),
-                        
+                        )
+                            .animate()
+                            .fadeIn(duration: 400.ms, delay: 100.ms)
+                            .slideY(begin: 0.1, end: 0),
+
                         const SizedBox(height: 25),
-                        
+
                         // Legend
                         Row(
                           children: [
@@ -229,11 +312,11 @@ class _FarmToolsCountState extends State<FarmToolsCount> {
                             ),
                           ],
                         ).animate().fadeIn(duration: 500.ms, delay: 200.ms),
-                        
+
                         const SizedBox(height: 15),
                         const Divider(),
                         const SizedBox(height: 5),
-                        
+
                         // Tools list
                         Expanded(
                           child: ListView(
@@ -248,7 +331,8 @@ class _FarmToolsCountState extends State<FarmToolsCount> {
                                   border: Border.all(color: Colors.grey[200]!),
                                 ),
                                 child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Row(
                                       children: [
@@ -266,29 +350,34 @@ class _FarmToolsCountState extends State<FarmToolsCount> {
                                             activeColor: MyColors().forestGreen,
                                             checkColor: Colors.white,
                                             shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(4),
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
                                             ),
                                           ),
                                         ),
                                         const SizedBox(width: 15),
-                                        
+
                                         // Tool icon
                                         Container(
                                           width: 40,
                                           height: 40,
                                           decoration: BoxDecoration(
-                                            color: MyColors().forestGreen.withOpacity(0.1),
-                                            borderRadius: BorderRadius.circular(8),
+                                            color: MyColors()
+                                                .forestGreen
+                                                .withOpacity(0.1),
+                                            borderRadius:
+                                                BorderRadius.circular(8),
                                           ),
                                           child: Icon(
                                             // Use generic icon if specific one not found
-                                            toolIcons[tool] ?? FontAwesomeIcons.wrench,
+                                            toolIcons[tool] ??
+                                                FontAwesomeIcons.wrench,
                                             color: MyColors().forestGreen,
                                             size: 20,
                                           ),
                                         ),
                                         const SizedBox(width: 15),
-                                        
+
                                         // Tool name
                                         Text(
                                           tool,
@@ -300,7 +389,7 @@ class _FarmToolsCountState extends State<FarmToolsCount> {
                                         ),
                                       ],
                                     ),
-                                    
+
                                     // Counter widget
                                     CounterWidget(
                                       count: tools[tool]!,
@@ -313,33 +402,32 @@ class _FarmToolsCountState extends State<FarmToolsCount> {
                                   ],
                                 ),
                               ).animate().fadeIn(
-                                duration: 400.ms,
-                                delay: Duration(milliseconds: 200 + (tools.keys.toList().indexOf(tool) * 100)),
-                              );
+                                    duration: 400.ms,
+                                    delay: Duration(
+                                        milliseconds: 200 +
+                                            (tools.keys.toList().indexOf(tool) *
+                                                100)),
+                                  );
                             }).toList(),
                           ),
                         ),
-                        
+
                         const SizedBox(height: 20),
-                        
+
                         // Next button
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.only(top: 5),
                           child: Column(
                             children: [
-                              CommonButton(
-                                customWidth: 200,
-                                buttonText: 'Continue',
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => const FarmSoil(),
+                              isLoading
+                                  ? CircularProgressIndicator(
+                                      color: MyColors().forestGreen)
+                                  : CommonButton(
+                                      customWidth: 200,
+                                      buttonText: 'Continue',
+                                      onTap: _continueToSoilInfo,
                                     ),
-                                  );
-                                },
-                              ),
                               const SizedBox(height: 15),
                               Text(
                                 "Next: Soil characteristics",
@@ -354,7 +442,10 @@ class _FarmToolsCountState extends State<FarmToolsCount> {
                         ).animate().fadeIn(duration: 800.ms, delay: 500.ms),
                       ],
                     ),
-                  ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.05, end: 0),
+                  )
+                      .animate()
+                      .fadeIn(duration: 400.ms)
+                      .slideY(begin: 0.05, end: 0),
                 ),
               ],
             ),

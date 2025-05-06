@@ -7,14 +7,20 @@ import '../../../../Constants/colors.dart';
 import '../../Create_Portion/addCrop.dart';
 
 class AddCropContainer extends StatelessWidget {
-  final Function(String crop, String cropFaze, String dayCount, String rowNumber, String rows) onSave;
+  final Function(String crop, String cropFaze, String dayCount,
+      String rowNumber, String rows) onSave;
+  final String portionId;
 
-  const AddCropContainer({super.key, required this.onSave});
+  const AddCropContainer({
+    super.key,
+    required this.onSave,
+    required this.portionId,
+  });
 
   @override
   Widget build(BuildContext context) {
     final myColors = MyColors();
-    
+
     return Card(
       elevation: 1,
       margin: EdgeInsets.zero,
@@ -26,19 +32,20 @@ class AddCropContainer extends StatelessWidget {
           // Navigate to AddCrop page and wait for the user input
           final result = await Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => const AddCrop()),
+            MaterialPageRoute(
+                builder: (context) => AddCrop(portionId: portionId)),
           );
 
           if (result != null) {
             // Pass the result back to the parent widget (PortionItem)
             onSave(
-              result['crop'] ?? '', 
-              result['cropFaze'] ?? '', 
-              result['dayCount'] ?? '', 
+              result['crop'] ?? '',
+              result['cropFaze'] ?? '',
+              result['dayCount'] ?? '',
               result['rowNumber'] ?? '',
               result['rows'] ?? '',
             );
-            
+
             // For debugging - print out the values to ensure rows is being passed
             print('Saved crop with rows: ${result['rows']}');
           }

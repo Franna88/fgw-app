@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../CommonUi/cornerHeaderContainer.dart';
 import '../Constants/colors.dart';
@@ -18,19 +20,99 @@ class UserReminders extends StatefulWidget {
 }
 
 class _UserRemindersState extends State<UserReminders> {
+  bool _isLoading = true;
   List<Map<String, dynamic>> reminders = [];
 
-  void _addReminder(Map<String, dynamic> reminder) {
-    setState(() {
-      reminders.add(reminder);
-    });
+  @override
+  void initState() {
+    super.initState();
+    _loadReminders();
+  }
+
+  Future<void> _loadReminders() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        throw Exception('User not logged in');
+      }
+
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .collection('reminders')
+          .orderBy('date')
+          .get();
+
+      setState(() {
+        reminders = querySnapshot.docs.map((doc) {
+          final data = doc.data();
+          return {
+            'id': doc.id,
+            'field': data['field'] ?? 'Unknown Field',
+            'portion': data['portion'] ?? 'Unknown Portion',
+            'date': (data['date'] as Timestamp).toDate(),
+            'reminder': data['reminder'] ?? '',
+            'isCompleted': data['isCompleted'] ?? false,
+          };
+        }).toList();
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error loading reminders: $e');
+      setState(() {
+        reminders = [];
+        _isLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error loading reminders: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _updateReminderStatus(
+      String reminderId, bool isCompleted) async {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        throw Exception('User not logged in');
+      }
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .collection('reminders')
+          .doc(reminderId)
+          .update({'isCompleted': isCompleted});
+
+      // Update local state
+      setState(() {
+        final index = reminders.indexWhere((r) => r['id'] == reminderId);
+        if (index != -1) {
+          reminders[index]['isCompleted'] = isCompleted;
+        }
+      });
+    } catch (e) {
+      print('Error updating reminder status: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error updating reminder: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final myColors = MyColors();
     final screenWidth = MediaQuery.of(context).size.width;
-    
+
     return Scaffold(
       backgroundColor: myColors.offWhite,
       body: SafeArea(
@@ -54,7 +136,6 @@ class _UserRemindersState extends State<UserReminders> {
                 header: 'My Reminders',
                 hasBackArrow: true,
               ).animate().fadeIn(duration: 300.ms),
-              
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
                 child: CommonButton(
@@ -64,41 +145,44 @@ class _UserRemindersState extends State<UserReminders> {
                   customHeight: 50,
                   buttonText: 'Add Reminder',
                   onTap: () async {
-                    final newReminder = await Navigator.push(
+                    await Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) => const AddReminder(),
                       ),
                     );
-                    if (newReminder != null) {
-                      _addReminder(newReminder);
-                    }
+                    // Reload reminders after returning from add screen
+                    _loadReminders();
                   },
                 ),
               ),
-              
               Expanded(
-                child: reminders.isEmpty
-                  ? _buildEmptyState(myColors)
-                  : ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
-                      itemCount: reminders.length,
-                      itemBuilder: (context, index) {
-                        return ReminderItem(
-                          field: reminders[index]['field'],
-                          portion: reminders[index]['portion'],
-                          reminder: reminders[index]['reminder'],
-                          date: reminders[index]['date'],
-                          checkBoxValue: false,
-                          onChanged: (value) {
-                            // Handle checkbox changes here
-                            setState(() {
-                              // Remove or mark as complete
-                            });
-                          },
-                        ).animate().fadeIn(duration: 300.ms, delay: Duration(milliseconds: 50 * index));
-                      },
-                    ),
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : reminders.isEmpty
+                        ? _buildEmptyState(myColors)
+                        : ListView.builder(
+                            padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+                            itemCount: reminders.length,
+                            itemBuilder: (context, index) {
+                              final reminder = reminders[index];
+                              final date = reminder['date'] as DateTime;
+                              return ReminderItem(
+                                field: reminder['field'] as String,
+                                portion: reminder['portion'] as String,
+                                reminder: reminder['reminder'] as String,
+                                date: date,
+                                checkBoxValue: reminder['isCompleted'] as bool,
+                                onChanged: (value) {
+                                  _updateReminderStatus(
+                                      reminder['id'], value ?? false);
+                                },
+                              ).animate().fadeIn(
+                                    duration: 300.ms,
+                                    delay: Duration(milliseconds: 50 * index),
+                                  );
+                            },
+                          ),
               ),
             ],
           ),
@@ -106,7 +190,7 @@ class _UserRemindersState extends State<UserReminders> {
       ),
     );
   }
-  
+
   Widget _buildEmptyState(MyColors myColors) {
     return Center(
       child: Container(

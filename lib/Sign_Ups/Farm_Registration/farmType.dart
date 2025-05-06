@@ -6,6 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:provider/provider.dart';
+import 'package:farming_gods_way/services/user_provider.dart';
+import 'package:farming_gods_way/services/firebase_service.dart';
 
 import 'package:farming_gods_way/Sign_Ups/Farmer_Sign_Up/ui/signUpStructure.dart';
 
@@ -19,15 +22,114 @@ class FarmType extends StatefulWidget {
 }
 
 class _FarmTypeState extends State<FarmType> {
-  final _farmTypes = ['Crop Farm', 'Animal Farm', 'Mixed Farm', 'Orchard', 'Other'];
-  final _productionTypes = ['Organic', 'Conventional', 'Integrated', 'Biodynamic', 'Permaculture'];
-  final _rowOrientations = ['North-South', 'East-West', 'Diagonal', 'Circular', 'Mixed'];
+  final _farmTypes = [
+    'Crop Farm',
+    'Animal Farm',
+    'Mixed Farm',
+    'Orchard',
+    'Other'
+  ];
+  final _productionTypes = [
+    'Organic',
+    'Conventional',
+    'Integrated',
+    'Biodynamic',
+    'Permaculture'
+  ];
+  final _rowOrientations = [
+    'North-South',
+    'East-West',
+    'Diagonal',
+    'Circular',
+    'Mixed'
+  ];
   final _groundSlopes = ['Flat', 'Gentle', 'Moderate', 'Steep', 'Terraced'];
-  
+
   String? _selectedFarmType;
   String? _selectedProductionType;
   String? _selectedRowOrientation;
   String? _selectedGroundSlope;
+  bool isLoading = false;
+
+  void _continueToToolsCount() async {
+    if (_validateSelections()) {
+      setState(() {
+        isLoading = true;
+      });
+
+      try {
+        // Get the farmId from provider
+        final userProvider = Provider.of<UserProvider>(context, listen: false);
+        final farmId = userProvider.registrationData['farmId'];
+
+        if (farmId != null) {
+          // Save farm type data
+          final farmTypeData = {
+            'farmType': _selectedFarmType,
+            'productionType': _selectedProductionType,
+            'rowOrientation': _selectedRowOrientation,
+            'groundSlope': _selectedGroundSlope,
+            'registrationStep': 'farm_type',
+            'updatedAt': DateTime.now().toIso8601String(),
+          };
+
+          // Store in provider
+          userProvider.storeRegistrationData(farmTypeData);
+
+          // Update in Firestore
+          await FirebaseService.firestore
+              .collection('farms')
+              .doc(farmId)
+              .update(farmTypeData);
+
+          // Proceed to next step
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const FarmToolsCount(),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content:
+                  Text('Farm ID not found. Please restart farm registration.'),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error saving farm type data: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      } finally {
+        if (mounted) {
+          setState(() {
+            isLoading = false;
+          });
+        }
+      }
+    }
+  }
+
+  bool _validateSelections() {
+    if (_selectedFarmType == null ||
+        _selectedProductionType == null ||
+        _selectedRowOrientation == null ||
+        _selectedGroundSlope == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please fill in all fields'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return false;
+    }
+    return true;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -46,7 +148,7 @@ class _FarmTypeState extends State<FarmType> {
               ),
             ),
           ),
-          
+
           // Main content
           SafeArea(
             child: Column(
@@ -54,7 +156,8 @@ class _FarmTypeState extends State<FarmType> {
               children: [
                 // Header section
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
                   child: Row(
                     children: [
                       IconButton(
@@ -88,10 +191,11 @@ class _FarmTypeState extends State<FarmType> {
                     ],
                   ),
                 ),
-                
+
                 // Progress indicator
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
                   child: Container(
                     height: 4,
                     decoration: BoxDecoration(
@@ -122,14 +226,15 @@ class _FarmTypeState extends State<FarmType> {
                     ),
                   ).animate().fadeIn(delay: 300.ms),
                 ),
-                
+
                 const SizedBox(height: 10),
-                
+
                 // Form content
                 Expanded(
                   child: Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 30),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 25, vertical: 30),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: const BorderRadius.only(
@@ -156,68 +261,78 @@ class _FarmTypeState extends State<FarmType> {
                               fontWeight: FontWeight.w500,
                               color: Colors.black87,
                             ),
-                          ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
-                          
+                          )
+                              .animate()
+                              .fadeIn(duration: 400.ms)
+                              .slideY(begin: 0.1, end: 0),
+
                           const SizedBox(height: 10),
-                          
+
                           Text(
                             'Tell us about your farm characteristics',
                             style: GoogleFonts.roboto(
                               fontSize: 14,
                               color: Colors.grey[600],
                             ),
-                          ).animate().fadeIn(duration: 400.ms, delay: 100.ms).slideY(begin: 0.1, end: 0),
-                          
+                          )
+                              .animate()
+                              .fadeIn(duration: 400.ms, delay: 100.ms)
+                              .slideY(begin: 0.1, end: 0),
+
                           const SizedBox(height: 25),
-                          
+
                           // Farm type dropdown
                           _buildDropdown(
                             'Type of Farm',
                             'Select farm type',
                             _farmTypes,
                             _selectedFarmType,
-                            (value) => setState(() => _selectedFarmType = value),
+                            (value) =>
+                                setState(() => _selectedFarmType = value),
                             200.ms,
                           ),
-                          
+
                           const SizedBox(height: 20),
-                          
+
                           // Production type dropdown
                           _buildDropdown(
                             'Farm Production Type',
                             'Select production type',
                             _productionTypes,
                             _selectedProductionType,
-                            (value) => setState(() => _selectedProductionType = value),
+                            (value) =>
+                                setState(() => _selectedProductionType = value),
                             300.ms,
                           ),
-                          
+
                           const SizedBox(height: 20),
-                          
+
                           // Row orientation dropdown
                           _buildDropdown(
                             'Orientation of Rows',
                             'Select row orientation',
                             _rowOrientations,
                             _selectedRowOrientation,
-                            (value) => setState(() => _selectedRowOrientation = value),
+                            (value) =>
+                                setState(() => _selectedRowOrientation = value),
                             400.ms,
                           ),
-                          
+
                           const SizedBox(height: 20),
-                          
+
                           // Ground slope dropdown
                           _buildDropdown(
                             'General Ground Slope',
                             'Select ground slope',
                             _groundSlopes,
                             _selectedGroundSlope,
-                            (value) => setState(() => _selectedGroundSlope = value),
+                            (value) =>
+                                setState(() => _selectedGroundSlope = value),
                             500.ms,
                           ),
-                          
+
                           const SizedBox(height: 40),
-                          
+
                           // Farm type icons
                           Container(
                             padding: const EdgeInsets.all(16),
@@ -239,38 +354,39 @@ class _FarmTypeState extends State<FarmType> {
                                 ),
                                 const SizedBox(height: 12),
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceAround,
                                   children: [
-                                    _buildFarmTypeIcon(FontAwesomeIcons.wheatAwn, 'Crop'),
-                                    _buildFarmTypeIcon(FontAwesomeIcons.cow, 'Animal'),
-                                    _buildFarmTypeIcon(FontAwesomeIcons.tree, 'Orchard'),
-                                    _buildFarmTypeIcon(FontAwesomeIcons.seedling, 'Mixed'),
+                                    _buildFarmTypeIcon(
+                                        FontAwesomeIcons.wheatAwn, 'Crop'),
+                                    _buildFarmTypeIcon(
+                                        FontAwesomeIcons.cow, 'Animal'),
+                                    _buildFarmTypeIcon(
+                                        FontAwesomeIcons.tree, 'Orchard'),
+                                    _buildFarmTypeIcon(
+                                        FontAwesomeIcons.seedling, 'Mixed'),
                                   ],
                                 ),
                               ],
                             ),
                           ).animate().fadeIn(duration: 600.ms, delay: 600.ms),
-                          
+
                           const SizedBox(height: 40),
-                          
+
                           // Next button
                           Container(
                             width: double.infinity,
                             padding: const EdgeInsets.only(top: 5),
                             child: Column(
                               children: [
-                                CommonButton(
-                                  customWidth: 200,
-                                  buttonText: 'Continue',
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => const FarmToolsCount(),
+                                isLoading
+                                    ? CircularProgressIndicator(
+                                        color: MyColors().forestGreen)
+                                    : CommonButton(
+                                        customWidth: 200,
+                                        buttonText: 'Continue',
+                                        onTap: _continueToToolsCount,
                                       ),
-                                    );
-                                  },
-                                ),
                                 const SizedBox(height: 15),
                                 Text(
                                   "Next: Farm tools inventory",
@@ -286,7 +402,10 @@ class _FarmTypeState extends State<FarmType> {
                         ],
                       ),
                     ),
-                  ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.05, end: 0),
+                  )
+                      .animate()
+                      .fadeIn(duration: 400.ms)
+                      .slideY(begin: 0.05, end: 0),
                 ),
               ],
             ),
@@ -295,7 +414,7 @@ class _FarmTypeState extends State<FarmType> {
       ),
     );
   }
-  
+
   Widget _buildDropdown(
     String label,
     String hint,
@@ -361,7 +480,7 @@ class _FarmTypeState extends State<FarmType> {
       ],
     ).animate().fadeIn(duration: 500.ms, delay: delay);
   }
-  
+
   Widget _buildFarmTypeIcon(IconData icon, String label) {
     return Column(
       children: [

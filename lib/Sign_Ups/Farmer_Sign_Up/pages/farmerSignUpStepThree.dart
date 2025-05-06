@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:provider/provider.dart';
+import 'package:farming_gods_way/services/user_provider.dart';
 
 import '../../../Constants/colors.dart';
 import '../../../Constants/myutility.dart';
@@ -27,6 +29,18 @@ class _FarmerSignUpStepThreeState extends State<FarmerSignUpStepThree> {
 
   void _submitForm() {
     if (_formKey.currentState!.validate()) {
+      // Collect location data
+      Map<String, dynamic> locationData = {
+        'country': country.text,
+        'province': province.text,
+        'district': district.text,
+        'homeAddress': homeAddress.text,
+      };
+
+      // Store data using provider
+      Provider.of<UserProvider>(context, listen: false)
+          .storeRegistrationData(locationData);
+
       // Proceed to the next step
       Navigator.push(
         context,
@@ -62,7 +76,7 @@ class _FarmerSignUpStepThreeState extends State<FarmerSignUpStepThree> {
               ),
             ),
           ),
-          
+
           // Main content
           SafeArea(
             child: Column(
@@ -70,7 +84,8 @@ class _FarmerSignUpStepThreeState extends State<FarmerSignUpStepThree> {
               children: [
                 // Header section
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
                   child: Row(
                     children: [
                       IconButton(
@@ -104,10 +119,11 @@ class _FarmerSignUpStepThreeState extends State<FarmerSignUpStepThree> {
                     ],
                   ),
                 ),
-                
+
                 // Progress indicator
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
                   child: Row(
                     children: [
                       Expanded(
@@ -134,9 +150,9 @@ class _FarmerSignUpStepThreeState extends State<FarmerSignUpStepThree> {
                     ],
                   ).animate().fadeIn(delay: 300.ms),
                 ),
-                
+
                 const SizedBox(height: 10),
-                
+
                 // Form content
                 Expanded(
                   child: Container(
@@ -164,7 +180,7 @@ class _FarmerSignUpStepThreeState extends State<FarmerSignUpStepThree> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const SizedBox(height: 10),
-                            
+
                             // Country field
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -182,16 +198,21 @@ class _FarmerSignUpStepThreeState extends State<FarmerSignUpStepThree> {
                                   decoration: BoxDecoration(
                                     color: Colors.grey[100],
                                     borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: Colors.grey.shade300),
+                                    border:
+                                        Border.all(color: Colors.grey.shade300),
                                   ),
                                   child: TextFormField(
                                     controller: country,
                                     decoration: InputDecoration(
                                       border: InputBorder.none,
                                       hintText: 'Enter your country',
-                                      hintStyle: TextStyle(color: Colors.grey[400]),
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 16),
-                                      prefixIcon: Icon(Icons.public, color: MyColors().forestGreen),
+                                      hintStyle:
+                                          TextStyle(color: Colors.grey[400]),
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                              horizontal: 15, vertical: 16),
+                                      prefixIcon: Icon(Icons.public,
+                                          color: MyColors().forestGreen),
                                     ),
                                     validator: (value) {
                                       if (value == null || value.isEmpty) {
@@ -202,10 +223,13 @@ class _FarmerSignUpStepThreeState extends State<FarmerSignUpStepThree> {
                                   ),
                                 ),
                               ],
-                            ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
-                            
+                            )
+                                .animate()
+                                .fadeIn(duration: 400.ms)
+                                .slideY(begin: 0.1, end: 0),
+
                             const SizedBox(height: 20),
-                            
+
                             // Province field
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -223,16 +247,22 @@ class _FarmerSignUpStepThreeState extends State<FarmerSignUpStepThree> {
                                   decoration: BoxDecoration(
                                     color: Colors.grey[100],
                                     borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: Colors.grey.shade300),
+                                    border:
+                                        Border.all(color: Colors.grey.shade300),
                                   ),
                                   child: TextFormField(
                                     controller: province,
                                     decoration: InputDecoration(
                                       border: InputBorder.none,
                                       hintText: 'Enter your province/state',
-                                      hintStyle: TextStyle(color: Colors.grey[400]),
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 16),
-                                      prefixIcon: Icon(FontAwesomeIcons.mapLocation, color: MyColors().forestGreen),
+                                      hintStyle:
+                                          TextStyle(color: Colors.grey[400]),
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                              horizontal: 15, vertical: 16),
+                                      prefixIcon: Icon(
+                                          FontAwesomeIcons.mapLocation,
+                                          color: MyColors().forestGreen),
                                     ),
                                     validator: (value) {
                                       if (value == null || value.isEmpty) {
@@ -243,10 +273,13 @@ class _FarmerSignUpStepThreeState extends State<FarmerSignUpStepThree> {
                                   ),
                                 ),
                               ],
-                            ).animate().fadeIn(duration: 500.ms, delay: 100.ms).slideY(begin: 0.1, end: 0),
-                            
+                            )
+                                .animate()
+                                .fadeIn(duration: 500.ms, delay: 100.ms)
+                                .slideY(begin: 0.1, end: 0),
+
                             const SizedBox(height: 20),
-                            
+
                             // District field
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -264,16 +297,22 @@ class _FarmerSignUpStepThreeState extends State<FarmerSignUpStepThree> {
                                   decoration: BoxDecoration(
                                     color: Colors.grey[100],
                                     borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: Colors.grey.shade300),
+                                    border:
+                                        Border.all(color: Colors.grey.shade300),
                                   ),
                                   child: TextFormField(
                                     controller: district,
                                     decoration: InputDecoration(
                                       border: InputBorder.none,
                                       hintText: 'Enter your district',
-                                      hintStyle: TextStyle(color: Colors.grey[400]),
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 16),
-                                      prefixIcon: Icon(FontAwesomeIcons.locationDot, color: MyColors().forestGreen),
+                                      hintStyle:
+                                          TextStyle(color: Colors.grey[400]),
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                              horizontal: 15, vertical: 16),
+                                      prefixIcon: Icon(
+                                          FontAwesomeIcons.locationDot,
+                                          color: MyColors().forestGreen),
                                     ),
                                     validator: (value) {
                                       if (value == null || value.isEmpty) {
@@ -284,10 +323,13 @@ class _FarmerSignUpStepThreeState extends State<FarmerSignUpStepThree> {
                                   ),
                                 ),
                               ],
-                            ).animate().fadeIn(duration: 600.ms, delay: 200.ms).slideY(begin: 0.1, end: 0),
-                            
+                            )
+                                .animate()
+                                .fadeIn(duration: 600.ms, delay: 200.ms)
+                                .slideY(begin: 0.1, end: 0),
+
                             const SizedBox(height: 20),
-                            
+
                             // Home Address field
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -305,19 +347,26 @@ class _FarmerSignUpStepThreeState extends State<FarmerSignUpStepThree> {
                                   decoration: BoxDecoration(
                                     color: Colors.grey[100],
                                     borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: Colors.grey.shade300),
+                                    border:
+                                        Border.all(color: Colors.grey.shade300),
                                   ),
                                   child: TextFormField(
                                     controller: homeAddress,
                                     maxLines: 3,
                                     decoration: InputDecoration(
                                       border: InputBorder.none,
-                                      hintText: 'Enter your complete home address',
-                                      hintStyle: TextStyle(color: Colors.grey[400]),
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 16),
+                                      hintText:
+                                          'Enter your complete home address',
+                                      hintStyle:
+                                          TextStyle(color: Colors.grey[400]),
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                              horizontal: 15, vertical: 16),
                                       prefixIcon: Padding(
-                                        padding: const EdgeInsets.only(left: 15, top: 15),
-                                        child: Icon(Icons.home, color: MyColors().forestGreen),
+                                        padding: const EdgeInsets.only(
+                                            left: 15, top: 15),
+                                        child: Icon(Icons.home,
+                                            color: MyColors().forestGreen),
                                       ),
                                       alignLabelWithHint: true,
                                     ),
@@ -330,10 +379,13 @@ class _FarmerSignUpStepThreeState extends State<FarmerSignUpStepThree> {
                                   ),
                                 ),
                               ],
-                            ).animate().fadeIn(duration: 700.ms, delay: 300.ms).slideY(begin: 0.1, end: 0),
-                            
+                            )
+                                .animate()
+                                .fadeIn(duration: 700.ms, delay: 300.ms)
+                                .slideY(begin: 0.1, end: 0),
+
                             const SizedBox(height: 40),
-                            
+
                             // Next button
                             Center(
                               child: CommonButton(
@@ -342,13 +394,16 @@ class _FarmerSignUpStepThreeState extends State<FarmerSignUpStepThree> {
                                 onTap: _submitForm,
                               ),
                             ).animate().fadeIn(duration: 800.ms, delay: 400.ms),
-                            
+
                             const SizedBox(height: 20),
                           ],
                         ),
                       ),
                     ),
-                  ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.05, end: 0),
+                  )
+                      .animate()
+                      .fadeIn(duration: 400.ms)
+                      .slideY(begin: 0.05, end: 0),
                 ),
               ],
             ),
