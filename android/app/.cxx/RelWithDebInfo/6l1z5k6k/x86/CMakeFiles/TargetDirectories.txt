@@ -1,0 +1,2 @@
+/Users/frannanortje/development/dev/fgw-app/android/app/.cxx/RelWithDebInfo/6l1z5k6k/x86/CMakeFiles/edit_cache.dir
+/Users/frannanortje/development/dev/fgw-app/android/app/.cxx/RelWithDebInfo/6l1z5k6k/x86/CMakeFiles/rebuild_cache.dir

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "918561985276",
+    "project_id": "farminggodsway-a31d4",
+    "storage_bucket": "farminggodsway-a31d4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:918561985276:android:e5e48b4382065473ba3d79",
+        "android_client_info": {
+          "package_name": "com.example.farming_gods_way"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBbL2N_qtyI8lcg7GWK0X-l8hAg2gSWhCs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+} 
